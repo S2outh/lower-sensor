@@ -1,0 +1,13 @@
+[target.thumbv6m-none-eabi]
+runner = "probe-rs run --chip STM32G0B1KE"
+rustflags = [
+  "-C", "link-arg=-Tlink.x", # linker file
+  "-C", "link-arg=--nmagic", # no std memory layout
+  "-C", "link-arg=-Tdefmt.x", # add defmt
+]
+
+[build]
+target = "thumbv6m-none-eabi"
+
+[net]
+git-fetch-with-cli = true

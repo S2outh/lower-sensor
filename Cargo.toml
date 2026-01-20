@@ -1,0 +1,33 @@
+[package]
+name = "south-sensor-lower"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+embassy-stm32 = { version = "0.5.0", features = [ "defmt", "time", "time-driver-any", "stm32g0b1ke", "memory-x", "unstable-pac", "exti"]  }
+embassy-sync = { version = "0.7.2", features = ["defmt"] }
+embassy-executor = { version = "0.9.1", features = ["arch-cortex-m", "executor-thread", "defmt"] }
+embassy-time = { version = "0.5.0", features = ["defmt", "defmt-timestamp-uptime", "tick-hz-32_768"] }
+embassy-futures = { version = "0.1.2" }
+
+defmt = "1.0"
+defmt-rtt = "1.1"
+
+cortex-m = { version = "0.7.7", features = ["inline-asm", "critical-section-single-core"] }
+cortex-m-rt = "0.7.5"
+panic-probe = { version = "1.0", features = ["print-defmt"] }
+heapless = { version = "0.9", default-features = false }
+portable-atomic = { version = "1.13", features = ["unsafe-assume-single-core"] }
+
+embedded-hal = "1.0.0"
+embedded-hal-async = "1.0.0"
+embedded-io-async = { version = "0.7.0" }
+embedded-can = "0.4.1"
+static_cell = { version = "2.1.1", features = ["nightly"] }
+
+south-common = { version = "2.0.0", features = ["g0"], git = "ssh://git@github.com/S2outh/south-common.git" }
+
+derive_more = { version = "2.1.1", features = ["constructor"], default-features = false }
+
+[profile.release]
+debug = 2
