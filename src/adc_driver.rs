@@ -1,4 +1,4 @@
-use defmt::*;
+
 use embassy_stm32::{
     exti::ExtiInput,
     gpio::Output,
@@ -8,6 +8,8 @@ use embassy_stm32::{
 use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, mutex::Mutex};
 
 type SpiError = embassy_stm32::spi::Error;
+
+const OFFSET_DRIFT: f32 = 0.002;
 
 #[macro_export]
 macro_rules! encode_reg8 {
@@ -35,18 +37,22 @@ pub enum ErrorAdc {
 }
 
 #[repr(u8)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum SensorMode {
     ADC = 0,
     Temp = 1,
 }
 
 #[repr(u8)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum OperationMode {
     SingleShot = 1,
     Continuous(u16) = 0,
 }
 
 #[repr(u8)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub enum FSR {
     FSR6_144V = 0b000,
     FSR4_096V = 0b001,
@@ -54,6 +60,15 @@ pub enum FSR {
     FSR1_024V = 0b011,
     FSR0_512V = 0b100,
     FSR0_256V = 0b101,
+}
+
+impl FSR {
+    pub fn get_gain_drift(&self) -> f32 {
+        match self {
+            FSR::FSR0_256V => 7.0,
+            _ => 5.0,
+        }
+    }
 }
 
 #[repr(u8)]
@@ -68,40 +83,38 @@ pub enum DataRate {
     SPS475 = 0b110,
     SPS860 = 0b111,
 }
+#[derive(PartialEq, Debug, Clone, Copy)]
+pub enum TempCorrection {
+    True(f32),
+    False,
+}
 
 #[repr(u8)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum Channel {
     CH1 = 0b100,
     CH2 = 0b101,
     CH3 = 0b110,
 }
 
-impl DataRate {
-    pub fn get_conversion_time(&self) -> u64 {
-        let base_us = match self {
-            DataRate::SPS8 => 125_000,
-            DataRate::SPS16 => 62_500,
-            DataRate::SPS32 => 31_250,
-            DataRate::SPS64 => 15_625,
-            DataRate::SPS128 => 7_813,
-            DataRate::SPS250 => 4_000,
-            DataRate::SPS475 => 2_105,
-            DataRate::SPS860 => 1_163,
-        };
-
-        (base_us * 115) / 100
+impl Channel {
+    pub fn get_channel(&self) -> usize {
+        match self {
+            Channel::CH1 => 0,
+            Channel::CH2 => 1,
+            Channel::CH3 => 2,
+        }
     }
 }
+
 pub struct Adc<'d> {
     spi: &'d Mutex<ThreadModeRawMutex, Spi<'d, Async, Master>>,
     cs: Output<'d>,
     int: ExtiInput<'d>,
-    temp_drift_correction: bool,
-    offset_error: Option<[i16; 3]>,
-    gain_error: Option<[i16; 3]>,
+    offset_error: [f32; 3],
+    gain_error: [f32; 3],
+    pub base_temp: f32,
     pub pull_up_enable: bool,
-    data_rate: DataRate,
-    conversion_time: u64,
 }
 
 impl<'d> Adc<'d> {
@@ -109,42 +122,23 @@ impl<'d> Adc<'d> {
         spi: &'d Mutex<ThreadModeRawMutex, Spi<'d, Async, Master>>,
         cs: Output<'d>,
         int: ExtiInput<'d>,
-        temp_drift_correction: bool,
     ) -> Self {
-        let dr = DataRate::SPS128;
         Self {
             spi,
             cs,
             int,
-            temp_drift_correction,
-            offset_error: None,
-            gain_error: None,
+            offset_error: [0.0, 0.0, 0.0],
+            gain_error: [1.0, 1.0, 1.0],
             pull_up_enable: false,
-            data_rate: dr,
-            conversion_time: dr.get_conversion_time(),
+            base_temp: 21.0,
         }
     }
-    pub fn set_offset_error(&mut self, ch1: i16, ch2: i16, ch3: i16) {
-        self.offset_error = Some([ch1, ch2, ch3]);
+    pub fn set_offset_error(&mut self, ch1: f32, ch2: f32, ch3: f32) {
+        self.offset_error = [ch1, ch2, ch3];
     }
 
-    pub fn set_gain_error(&mut self, ch1: i16, ch2: i16, ch3: i16) {
-        self.gain_error = Some([ch1, ch2, ch3]);
-    }
-
-    pub fn set_data_rate(&mut self, rate: DataRate) {
-        self.data_rate = rate;
-        self.conversion_time = rate.get_conversion_time();
-    }
-
-    pub fn activate_temp_drift_correction(&mut self) -> Result<(), ErrorAdc> {
-        if self.gain_error.is_some() && self.offset_error.is_some() {
-            self.temp_drift_correction = true;
-            Ok(())
-        } else {
-            error!("Gain Error and Offset Error need to be set");
-            Err(ErrorAdc::WrongConfig)
-        }
+    pub fn set_gain_error(&mut self, ch1: f32, ch2: f32, ch3: f32) {
+        self.gain_error = [ch1, ch2, ch3];
     }
 
     async fn write_register(&mut self, config_msb: u8, config_lsb: u8) -> Result<(), ErrorAdc> {
@@ -176,22 +170,43 @@ impl<'d> Adc<'d> {
         data_rate: DataRate,
         mode: SensorMode,
         operating: OperationMode,
-    ) -> Result<i16, ErrorAdc> {
+        temp_correction: TempCorrection,
+    ) -> Result<f32, ErrorAdc> {
+        let ch = channel.get_channel();
+        let gain_drift = fsr.get_gain_drift();
+
+        let (offset, gain) = match temp_correction {
+            TempCorrection::True(current_temp) => {
+                let temp_dif = current_temp - self.base_temp;
+
+                let corrected_offset = self.offset_error[ch] + (OFFSET_DRIFT * temp_dif);
+
+                let corrected_gain = self.gain_error[ch] * (1.0 + (gain_drift * temp_dif));
+
+                (corrected_offset, corrected_gain)
+            }
+            TempCorrection::False => (self.offset_error[ch], self.gain_error[ch]),
+        };
         match operating {
             OperationMode::Continuous(sample_count) => {
                 let config_msb = encode_reg8!({
-                    0 => 15, 1,
-                    channel as u8 => 12, 3,
-                    fsr as u8 => 9, 3,
-                    0 => 8, 1,
+                    0 => 7, 1,
+                    channel as u8 => 4, 3,
+                    fsr as u8 => 1, 3,
+                    0 => 0, 1,
                 });
 
                 let config_lsb = encode_reg8!({
                     data_rate as u8 => 5, 3,
-                    mode as u8 => 4,1,
+                    mode.clone() as u8 => 4,1,
                     self.pull_up_enable as u8 => 3,1,
                     0b01 => 1,2,
                     1 => 0,1,
+                });
+
+                let sleep_config_msb = encode_reg8!(base: config_msb, {
+                    0 => 15, 1, // SS = 0
+                    1 => 8, 1,  // MODE = 1 (Single-Shot / Power-Down)
                 });
 
                 self.write_register(config_msb, config_lsb).await?;
@@ -204,19 +219,37 @@ impl<'d> Adc<'d> {
                     sum += i16::from_le_bytes(raw_data) as i32;
                 }
                 let average = (sum / sample_count as i32) as i16;
-                Ok(average)
+
+                self.write_register(sleep_config_msb, config_lsb).await?;
+
+                let calibrated_data = match mode {
+                    SensorMode::ADC => (average as f32 - offset) * (1.0 + (gain * 1e-6)),
+                    SensorMode::Temp => {
+                        let code_14bit = average & 0x3FFF;
+                        // sign = MSB 0 or 1
+                        if (code_14bit & 0x2000) == 0 {
+                            // positiv
+                            (code_14bit as f32) * 0.03125
+                        } else {
+                            //negative: 14-bit two's complement calculation
+                            let mag = ((!code_14bit & 0x3FFF) + 1) as u16;
+                            -(mag as f32) * 0.03125
+                        }
+                    }
+                };
+                Ok(calibrated_data)
             }
             OperationMode::SingleShot => {
                 let config_msb = encode_reg8!({
-                    1 => 15, 1,
-                    channel as u8 => 12, 3,
-                    fsr as u8 => 9, 3,
-                    1 => 8, 1,
+                    1 => 7, 1,
+                    channel as u8 => 4, 3,
+                    fsr as u8 => 1, 3,
+                    1 => 0, 1,
                 });
 
                 let config_lsb = encode_reg8!({
                     data_rate as u8 => 5, 3,
-                    mode as u8 => 4,1,
+                    mode.clone() as u8 => 4,1,
                     self.pull_up_enable as u8 => 3,1,
                     0b01 => 1,2,
                     1 => 0,1,
@@ -225,9 +258,102 @@ impl<'d> Adc<'d> {
                 self.write_register(config_msb, config_lsb).await?;
                 self.int.wait_for_falling_edge().await;
                 let raw_data = self.read_register().await?;
-                Ok(i16::from_le_bytes(raw_data))
+
+                let calibrated_data = match mode {
+                    SensorMode::ADC => ((i16::from_le_bytes(raw_data) as f32) - offset) * (1.0 + (gain * 1e-6)),
+                    SensorMode::Temp => {
+                        let code_14bit = i16::from_le_bytes(raw_data) & 0x3FFF;
+                        // sign = MSB 0 or 1
+                        if (code_14bit & 0x2000) == 0 {
+                            // positiv
+                            (code_14bit as f32) * 0.03125
+                        } else {
+                            //negative: 14-bit two's complement calculation
+                            let mag = ((!code_14bit & 0x3FFF) + 1) as u16;
+                            -(mag as f32) * 0.03125
+                        }
+                    }
+                };
+
+                Ok(calibrated_data)
             }
         }
+    }
 
+    pub async fn read_channel(
+        &mut self,
+        channel: Channel,
+        data_rate: DataRate,
+        mode: OperationMode,
+        temp_correction: bool,
+    ) -> Result<(f32, f32), ErrorAdc> {
+        let temp = self.read_temp_adc(data_rate, mode).await?;
+        match channel {
+            // Pressure 1 / Pressure 2
+            Channel::CH1 | Channel::CH2 => {
+                let data = self
+                    .read_data_adc(
+                        channel,
+                        FSR::FSR6_144V,
+                        data_rate,
+                        SensorMode::ADC,
+                        mode,
+                        if temp_correction {
+                            TempCorrection::True(temp)
+                        } else {
+                            TempCorrection::False
+                        },
+                    )
+                    .await?;
+                Ok((data, temp))
+            }
+            // Temp
+            Channel::CH3 => {
+                let data = self
+                    .read_data_adc(channel, FSR::FSR2_048V, data_rate, SensorMode::ADC, mode, if temp_correction {TempCorrection::True(temp)} else {
+                        TempCorrection::False 
+                    })
+                    .await?;
+                Ok((data, temp))
+            }
+        }
+    }
+
+    pub async fn read_temp_adc(
+        &mut self,
+        data_rate: DataRate,
+        mode: OperationMode,
+    ) -> Result<f32, ErrorAdc> {
+        let temp_data = self
+            .read_data_adc(
+                Channel::CH1,
+                FSR::FSR1_024V,
+                data_rate,
+                SensorMode::Temp,
+                mode,
+                TempCorrection::False,
+            )
+            .await?;
+        Ok(temp_data)
+    }
+
+    pub async fn read_all_channels(
+        &mut self,
+        data_rate: DataRate,
+        mode: OperationMode,
+        temp_correction: bool,
+    ) -> Result<([f32;3],f32), ErrorAdc>
+    where 
+    {
+        let temp_adc = self.read_temp_adc(data_rate, mode).await?;
+        let temp_correction = if temp_correction {TempCorrection::True(temp_adc)} else {
+            TempCorrection::False
+        };
+
+        let pressure_1 = self.read_data_adc(Channel::CH1, FSR::FSR6_144V, data_rate, SensorMode::ADC, mode, temp_correction).await?;
+        let pressure_2 = self.read_data_adc(Channel::CH2, FSR::FSR6_144V, data_rate, SensorMode::ADC, mode, temp_correction).await?;
+        let temp = self.read_data_adc(Channel::CH3, FSR::FSR2_048V, data_rate, SensorMode::ADC, mode, temp_correction).await?;
+
+        Ok(([pressure_1,pressure_2,temp],temp_adc))
     }
 }
