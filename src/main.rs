@@ -156,7 +156,7 @@ pub async fn adc_thread(
 ) {
     loop {
         match adc
-            .read_all_channels(DataRate::SPS64, OperationMode::Continuous(4), true)
+            .read_all_channels(DataRate::SPS64, OperationMode::Continuous(4))
             .await
         {
             Ok((sensor_data, temp_adc)) => {

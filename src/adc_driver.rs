@@ -10,6 +10,30 @@ type SpiError = embassy_stm32::spi::Error;
 
 const OFFSET_DRIFT: f32 = 0.002;
 
+/*
+Für Kalibrierung später
+- offset error
+- gain error
+
+-> (Wert - offset) * (1+ gain*1e-6)
+
+let calibrated_data = match mode {
+                    SensorMode::ADC => (average as f32 - offset) * (1.0 + (gain * 1e-6)),
+                    SensorMode::Temp => {
+                        let code_14bit = average >> 2;
+                        // sign = MSB 0 or 1
+                        if (code_14bit & 0x2000) == 0 {
+                            // positiv
+                            (code_14bit as f32) * 0.03125
+                        } else {
+                            //negative: 14-bit two's complement calculation
+                            let mag = ((!code_14bit & 0x3FFF) + 1) as u16;
+                            -(mag as f32) * 0.03125
+                        }
+                    }
+                };
+*/
+
 #[macro_export]
 macro_rules! encode_reg8 {
     (base: $base:expr, { $($val:expr => $shift:literal, $width:literal),* $(,)? }) => {
@@ -110,9 +134,6 @@ pub struct Adc<'d> {
     spi: &'d Mutex<ThreadModeRawMutex, Spi<'d, Async, Master>>,
     cs: Output<'d>,
     int: ExtiInput<'d>,
-    offset_error: [f32; 3],
-    gain_error: [f32; 3],
-    pub base_temp: f32,
     pub pull_up_enable: bool,
 }
 
@@ -126,18 +147,8 @@ impl<'d> Adc<'d> {
             spi,
             cs,
             int,
-            offset_error: [0.0, 0.0, 0.0],
-            gain_error: [1.0, 1.0, 1.0],
             pull_up_enable: false,
-            base_temp: 21.0,
         }
-    }
-    pub fn set_offset_error(&mut self, ch1: f32, ch2: f32, ch3: f32) {
-        self.offset_error = [ch1, ch2, ch3];
-    }
-
-    pub fn set_gain_error(&mut self, ch1: f32, ch2: f32, ch3: f32) {
-        self.gain_error = [ch1, ch2, ch3];
     }
 
     async fn write_register(&mut self, config_msb: u8, config_lsb: u8) -> Result<(), ErrorAdc> {
@@ -168,23 +179,8 @@ impl<'d> Adc<'d> {
         data_rate: DataRate,
         mode: SensorMode,
         operating: OperationMode,
-        temp_correction: TempCorrection,
-    ) -> Result<f32, ErrorAdc> {
-        let ch = channel.get_channel();
-        let gain_drift = fsr.get_gain_drift();
+    ) -> Result<i16, ErrorAdc> {
 
-        let (offset, gain) = match temp_correction {
-            TempCorrection::True(current_temp) => {
-                let temp_dif = current_temp - self.base_temp;
-
-                let corrected_offset = self.offset_error[ch] + (OFFSET_DRIFT * temp_dif);
-
-                let corrected_gain = self.gain_error[ch] * (1.0 + (gain_drift * temp_dif));
-
-                (corrected_offset, corrected_gain)
-            }
-            TempCorrection::False => (self.offset_error[ch], self.gain_error[ch]),
-        };
         match operating {
             OperationMode::Continuous(sample_count) => {
                 let config_msb = encode_reg8!({
@@ -221,22 +217,7 @@ impl<'d> Adc<'d> {
 
                 self.write_register(sleep_config_msb, config_lsb).await?;
 
-                let calibrated_data = match mode {
-                    SensorMode::ADC => (average as f32 - offset) * (1.0 + (gain * 1e-6)),
-                    SensorMode::Temp => {
-                        let code_14bit = average & 0x3FFF;
-                        // sign = MSB 0 or 1
-                        if (code_14bit & 0x2000) == 0 {
-                            // positiv
-                            (code_14bit as f32) * 0.03125
-                        } else {
-                            //negative: 14-bit two's complement calculation
-                            let mag = ((!code_14bit & 0x3FFF) + 1) as u16;
-                            -(mag as f32) * 0.03125
-                        }
-                    }
-                };
-                Ok(calibrated_data)
+                Ok(average)
             }
             OperationMode::SingleShot => {
                 let config_msb = encode_reg8!({
@@ -259,25 +240,7 @@ impl<'d> Adc<'d> {
                 self.int.wait_for_falling_edge().await;
                 let raw_data = self.read_register().await?;
 
-                let calibrated_data = match mode {
-                    SensorMode::ADC => {
-                        ((i16::from_le_bytes(raw_data) as f32) - offset) * (1.0 + (gain * 1e-6))
-                    }
-                    SensorMode::Temp => {
-                        let code_14bit = i16::from_le_bytes(raw_data) & 0x3FFF;
-                        // sign = MSB 0 or 1
-                        if (code_14bit & 0x2000) == 0 {
-                            // positiv
-                            (code_14bit as f32) * 0.03125
-                        } else {
-                            //negative: 14-bit two's complement calculation
-                            let mag = ((!code_14bit & 0x3FFF) + 1) as u16;
-                            -(mag as f32) * 0.03125
-                        }
-                    }
-                };
-
-                Ok(calibrated_data)
+                Ok(i16::from_le_bytes(raw_data))
             }
         }
     }
@@ -287,9 +250,7 @@ impl<'d> Adc<'d> {
         channel: Channel,
         data_rate: DataRate,
         mode: OperationMode,
-        temp_correction: bool,
-    ) -> Result<(f32, f32), ErrorAdc> {
-        let temp = self.read_temp_adc(data_rate, mode).await?;
+    ) -> Result<i16, ErrorAdc> {
         match channel {
             // Pressure 1 / Pressure 2
             Channel::CH1 | Channel::CH2 => {
@@ -300,14 +261,9 @@ impl<'d> Adc<'d> {
                         data_rate,
                         SensorMode::ADC,
                         mode,
-                        if temp_correction {
-                            TempCorrection::True(temp)
-                        } else {
-                            TempCorrection::False
-                        },
                     )
                     .await?;
-                Ok((data, temp))
+                Ok(data)
             }
             // Temp
             Channel::CH3 => {
@@ -318,14 +274,9 @@ impl<'d> Adc<'d> {
                         data_rate,
                         SensorMode::ADC,
                         mode,
-                        if temp_correction {
-                            TempCorrection::True(temp)
-                        } else {
-                            TempCorrection::False
-                        },
                     )
                     .await?;
-                Ok((data, temp))
+                Ok(data)
             }
         }
     }
@@ -334,7 +285,7 @@ impl<'d> Adc<'d> {
         &mut self,
         data_rate: DataRate,
         mode: OperationMode,
-    ) -> Result<f32, ErrorAdc> {
+    ) -> Result<i16, ErrorAdc> {
         let temp_data = self
             .read_data_adc(
                 Channel::CH1,
@@ -342,7 +293,6 @@ impl<'d> Adc<'d> {
                 data_rate,
                 SensorMode::Temp,
                 mode,
-                TempCorrection::False,
             )
             .await?;
         Ok(temp_data)
@@ -352,15 +302,9 @@ impl<'d> Adc<'d> {
         &mut self,
         data_rate: DataRate,
         mode: OperationMode,
-        temp_correction: bool,
-    ) -> Result<([f32; 3], f32), ErrorAdc>
+    ) -> Result<([i16; 3], i16), ErrorAdc>
 where {
         let temp_adc = self.read_temp_adc(data_rate, mode).await?;
-        let temp_correction = if temp_correction {
-            TempCorrection::True(temp_adc)
-        } else {
-            TempCorrection::False
-        };
 
         let pressure_1 = self
             .read_data_adc(
@@ -369,7 +313,6 @@ where {
                 data_rate,
                 SensorMode::ADC,
                 mode,
-                temp_correction,
             )
             .await?;
         let pressure_2 = self
@@ -379,7 +322,6 @@ where {
                 data_rate,
                 SensorMode::ADC,
                 mode,
-                temp_correction,
             )
             .await?;
         let temp = self
@@ -389,7 +331,6 @@ where {
                 data_rate,
                 SensorMode::ADC,
                 mode,
-                temp_correction,
             )
             .await?;
 
