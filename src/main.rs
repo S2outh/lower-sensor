@@ -17,13 +17,13 @@ use embassy_stm32::{
         frame::FdFrame,
     },
     exti::{ExtiInput, InterruptHandler},
-    gpio::{Level, Output, Speed},
+    gpio::{Level, Output, Pull, Speed},
     interrupt::typelevel::EXTI4_15,
     mode::Async,
     peripherals::{FDCAN1, IWDG},
     rcc::{self, mux::Fdcansel},
     spi::{self, Spi, mode::Master},
-    time::{Hertz},
+    time::Hertz,
     wdg::IndependentWatchdog,
 };
 use embassy_sync::{
@@ -74,7 +74,12 @@ fn get_rcc_config() -> rcc::Config {
     rcc_config
 }
 
+// General setup stuff
 const STARTUP_DELAY: u64 = 300;
+
+const WATCHDOG_TIMEOUT_US: u32 = 300_000;
+const WATCHDOG_PETTING_INTERVAL_US: u32 = WATCHDOG_TIMEOUT_US / 2;
+
 // Telemtry container
 type LowerSensorTMContainer = telemetry_container!(tm);
 
@@ -100,7 +105,7 @@ static TX_BUF: StaticCell<TxFdBuf<TX_BUF_SIZE>> = StaticCell::new();
 async fn petter(mut watchdog: IndependentWatchdog<'static, IWDG>) {
     loop {
         watchdog.pet();
-        Timer::after_millis(200).await;
+        Timer::after_micros(WATCHDOG_PETTING_INTERVAL_US.into()).await;
     }
 }
 
@@ -177,10 +182,10 @@ async fn main(spawner: Spawner) {
     let mut config = Config::default();
     config.rcc = get_rcc_config();
     let p = embassy_stm32::init(config);
-    info!("launching");
+    info!("Launching");
 
-    // watchdog with 300ms timeout
-    let mut watchdog = IndependentWatchdog::new(p.IWDG, 300_000);
+    // create independent watchdog
+    let mut watchdog = IndependentWatchdog::new(p.IWDG, WATCHDOG_TIMEOUT_US);
 
     // TM channel setup
     let tm_channel = TMC.init(Channel::new());
@@ -208,7 +213,7 @@ async fn main(spawner: Spawner) {
     spi_config.mode = spi::MODE_1;
 
     let cs_adc = Output::new(p.PA8, Level::High, Speed::Low);
-    let int = ExtiInput::new(p.PA4, p.EXTI4, embassy_stm32::gpio::Pull::Down, Irqs);
+    let int = ExtiInput::new(p.PA4, p.EXTI4, Pull::None, Irqs);
 
     let spi = SPI.init(Mutex::new(Spi::new(
         p.SPI1, p.PA5, p.PA7, p.PA6, p.DMA1_CH1, p.DMA1_CH2, spi_config,
