@@ -1,1 +1,7 @@
-/target
+# rust
+target/
+.direnv/
+
+# secrets
+flatsat.token
+
