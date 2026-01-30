@@ -1,4 +1,3 @@
-
 use embassy_stm32::{
     exti::ExtiInput,
     gpio::Output,
@@ -155,7 +154,6 @@ impl<'d> Adc<'d> {
 
     async fn read_register(&mut self) -> Result<[u8; 2], ErrorAdc> {
         let mut buf = [0u8; 2];
-        self.cs.set_low();
         let mut spi = self.spi.lock().await;
         let spi: &mut Spi<'_, Async, Master> = &mut spi;
         spi.read(&mut buf).await.map_err(|e| ErrorAdc::Spi(e))?;
@@ -214,6 +212,7 @@ impl<'d> Adc<'d> {
                 let mut sum: i32 = 0;
 
                 for _ in 0..sample_count {
+                    self.cs.set_low();
                     self.int.wait_for_falling_edge().await;
                     let raw_data = self.read_register().await?;
                     sum += i16::from_le_bytes(raw_data) as i32;
@@ -256,11 +255,14 @@ impl<'d> Adc<'d> {
                 });
 
                 self.write_register(config_msb, config_lsb).await?;
+                self.cs.set_low();
                 self.int.wait_for_falling_edge().await;
                 let raw_data = self.read_register().await?;
 
                 let calibrated_data = match mode {
-                    SensorMode::ADC => ((i16::from_le_bytes(raw_data) as f32) - offset) * (1.0 + (gain * 1e-6)),
+                    SensorMode::ADC => {
+                        ((i16::from_le_bytes(raw_data) as f32) - offset) * (1.0 + (gain * 1e-6))
+                    }
                     SensorMode::Temp => {
                         let code_14bit = i16::from_le_bytes(raw_data) & 0x3FFF;
                         // sign = MSB 0 or 1
@@ -310,9 +312,18 @@ impl<'d> Adc<'d> {
             // Temp
             Channel::CH3 => {
                 let data = self
-                    .read_data_adc(channel, FSR::FSR2_048V, data_rate, SensorMode::ADC, mode, if temp_correction {TempCorrection::True(temp)} else {
-                        TempCorrection::False 
-                    })
+                    .read_data_adc(
+                        channel,
+                        FSR::FSR2_048V,
+                        data_rate,
+                        SensorMode::ADC,
+                        mode,
+                        if temp_correction {
+                            TempCorrection::True(temp)
+                        } else {
+                            TempCorrection::False
+                        },
+                    )
                     .await?;
                 Ok((data, temp))
             }
@@ -342,18 +353,46 @@ impl<'d> Adc<'d> {
         data_rate: DataRate,
         mode: OperationMode,
         temp_correction: bool,
-    ) -> Result<([f32;3],f32), ErrorAdc>
-    where 
-    {
+    ) -> Result<([f32; 3], f32), ErrorAdc>
+where {
         let temp_adc = self.read_temp_adc(data_rate, mode).await?;
-        let temp_correction = if temp_correction {TempCorrection::True(temp_adc)} else {
+        let temp_correction = if temp_correction {
+            TempCorrection::True(temp_adc)
+        } else {
             TempCorrection::False
         };
 
-        let pressure_1 = self.read_data_adc(Channel::CH1, FSR::FSR6_144V, data_rate, SensorMode::ADC, mode, temp_correction).await?;
-        let pressure_2 = self.read_data_adc(Channel::CH2, FSR::FSR6_144V, data_rate, SensorMode::ADC, mode, temp_correction).await?;
-        let temp = self.read_data_adc(Channel::CH3, FSR::FSR2_048V, data_rate, SensorMode::ADC, mode, temp_correction).await?;
+        let pressure_1 = self
+            .read_data_adc(
+                Channel::CH1,
+                FSR::FSR6_144V,
+                data_rate,
+                SensorMode::ADC,
+                mode,
+                temp_correction,
+            )
+            .await?;
+        let pressure_2 = self
+            .read_data_adc(
+                Channel::CH2,
+                FSR::FSR6_144V,
+                data_rate,
+                SensorMode::ADC,
+                mode,
+                temp_correction,
+            )
+            .await?;
+        let temp = self
+            .read_data_adc(
+                Channel::CH3,
+                FSR::FSR2_048V,
+                data_rate,
+                SensorMode::ADC,
+                mode,
+                temp_correction,
+            )
+            .await?;
 
-        Ok(([pressure_1,pressure_2,temp],temp_adc))
+        Ok(([pressure_1, pressure_2, temp], temp_adc))
     }
 }
