@@ -5,10 +5,52 @@ use embassy_stm32::{
     spi::{Spi, mode::Master},
 };
 use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, mutex::Mutex};
+use libm;
 
 type SpiError = embassy_stm32::spi::Error;
 
-const OFFSET_DRIFT: f32 = 0.002;
+// recording to IEC 60751 a resistor of a platinum RTD follows the Callendar-Van Dusen equation
+// R(t) = R0 * (1 + At + Bt² + [C(t-100)t³])
+// t>0: C = 0
+
+const TEMP_A: f64 = 3.9083e-3;
+const TEMP_B: f64 = -5.775e-7;
+const R_0: f64 = 1000.0;
+
+// max 
+
+pub fn temp_raw_to_celcius(raw: i16) -> f32 {
+    let fsr = 2.048;
+
+    // convert raw adc value to voltage
+    let u =  (raw as f64 * fsr) / 32768.0;
+
+    // convert voltage to resistance with constant current source I = 1mA
+    let r = u * 1000.0;
+
+    // solve quadratic formula t = (-A + sqrt(D)) / 2B
+    let d = TEMP_A * TEMP_A - 4.0 * TEMP_B * (1.0 - r/R_0);
+
+    if d<0.0 {
+        return f32::NAN;
+    }
+
+    let sqrt_d = libm::sqrt(d);
+    let temperature = (-TEMP_A + sqrt_d) / (2.0 * TEMP_B);
+    temperature as f32
+    // 
+}
+
+pub fn pres_raw_to_pascal(raw: i16) -> f32 {
+    let fsr = 4.096;
+
+    let u_pin = (raw as f32 * fsr) / 32768.0;
+    let u_sens = u_pin * 3.0;
+
+    let p_bar = u_sens/10.0 * 100.0;
+    p_bar*100_000.0
+    
+}
 
 /*
 Für Kalibrierung später
@@ -90,6 +132,16 @@ impl FSR {
         match self {
             FSR::FSR0_256V => 7.0,
             _ => 5.0,
+        }
+    }
+    pub fn get_fsr(&self) -> f32 {
+        match self {
+            FSR::FSR0_256V => 0.256,
+            FSR::FSR0_512V => 0.512,
+            FSR::FSR1_024V => 1.024,
+            FSR::FSR2_048V => 2.048,
+            FSR::FSR4_096V => 4.096,
+            FSR::FSR6_144V => 6.144,
         }
     }
 }
@@ -302,8 +354,7 @@ impl<'d> Adc<'d> {
         &mut self,
         data_rate: DataRate,
         mode: OperationMode,
-    ) -> Result<([i16; 3], i16), ErrorAdc>
-where {
+    ) -> Result<([i16; 3], i16), ErrorAdc>{
         let temp_adc = self.read_temp_adc(data_rate, mode).await?;
 
         let pressure_1 = self

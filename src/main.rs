@@ -39,7 +39,7 @@ use south_common::{
 use static_cell::StaticCell;
 
 use crate::adc_driver::{
-    Adc as SensorAdc, DataRate, OperationMode,
+    Adc as SensorAdc, DataRate, OperationMode, pres_raw_to_pascal, temp_raw_to_celcius
 };
 
 use {defmt_rtt as _, panic_probe as _};
@@ -160,6 +160,9 @@ pub async fn adc_thread(
             .await
         {
             Ok((sensor_data, temp_adc)) => {
+                info!("temp °C: {}", temp_raw_to_celcius(sensor_data[2]));
+                info!("pres1 pa: {}", pres_raw_to_pascal(sensor_data[0]));
+                info!("pres2 pa: {}", pres_raw_to_pascal(sensor_data[1]));
                 let container_p1 =
                     LowerSensorTMContainer::new(pressure1_def, &sensor_data[0]).unwrap();
                 tm_sender.send(container_p1).await;
