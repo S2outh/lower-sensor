@@ -215,11 +215,11 @@ impl<'d> Adc<'d> {
         Ok(())
     }
 
-    async fn read_register(&mut self) -> Result<[u8; 2], ErrorAdc> {
-        let mut buf = [0u8; 2];
+    async fn read_register(&mut self, config_msb: u8, config_lsb: u8) -> Result<[u8; 2], ErrorAdc> {
+        let mut buf = [config_msb, config_lsb];
         let mut spi = self.spi.lock().await;
         let spi: &mut Spi<'_, Async, Master> = &mut spi;
-        spi.read(&mut buf).await.map_err(|e| ErrorAdc::Spi(e))?;
+        spi.transfer_in_place(&mut buf).await.map_err(|e| ErrorAdc::Spi(e))?;
         self.cs.set_high();
         Ok(buf)
     }
@@ -254,7 +254,7 @@ impl<'d> Adc<'d> {
                     0 => 15, 1, // SS = 0
                     1 => 8, 1,  // MODE = 1 (Single-Shot / Power-Down)
                 });
-
+                
                 self.write_register(config_msb, config_lsb).await?;
 
                 let mut sum: i32 = 0;
@@ -262,8 +262,8 @@ impl<'d> Adc<'d> {
                 for _ in 0..sample_count {
                     self.cs.set_low();
                     self.int.wait_for_falling_edge().await;
-                    let raw_data = self.read_register().await?;
-                    sum += i16::from_le_bytes(raw_data) as i32;
+                    let raw_data = self.read_register(config_msb, config_lsb).await?;
+                    sum += i16::from_be_bytes(raw_data) as i32;
                 }
                 let average = (sum / sample_count as i32) as i16;
 
@@ -290,9 +290,9 @@ impl<'d> Adc<'d> {
                 self.write_register(config_msb, config_lsb).await?;
                 self.cs.set_low();
                 self.int.wait_for_falling_edge().await;
-                let raw_data = self.read_register().await?;
+                let raw_data = self.read_register(config_msb, config_lsb).await?;
 
-                Ok(i16::from_le_bytes(raw_data))
+                Ok(i16::from_be_bytes(raw_data))
             }
         }
     }
@@ -309,7 +309,7 @@ impl<'d> Adc<'d> {
                 let data = self
                     .read_data_adc(
                         channel,
-                        FSR::FSR6_144V,
+                        FSR::FSR4_096V,
                         data_rate,
                         SensorMode::ADC,
                         mode,
@@ -341,7 +341,7 @@ impl<'d> Adc<'d> {
         let temp_data = self
             .read_data_adc(
                 Channel::CH1,
-                FSR::FSR1_024V,
+                FSR::FSR2_048V,
                 data_rate,
                 SensorMode::Temp,
                 mode,
@@ -360,7 +360,7 @@ impl<'d> Adc<'d> {
         let pressure_1 = self
             .read_data_adc(
                 Channel::CH1,
-                FSR::FSR6_144V,
+                FSR::FSR4_096V,
                 data_rate,
                 SensorMode::ADC,
                 mode,
@@ -369,7 +369,7 @@ impl<'d> Adc<'d> {
         let pressure_2 = self
             .read_data_adc(
                 Channel::CH2,
-                FSR::FSR6_144V,
+                FSR::FSR4_096V,
                 data_rate,
                 SensorMode::ADC,
                 mode,
