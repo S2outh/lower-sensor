@@ -240,4 +240,7 @@ async fn main(spawner: Spawner) {
 
     spawner.must_spawn(tm_thread(can_interface.writer(), tm_channel.receiver()));
     spawner.must_spawn(tc_thread(can_interface.reader(), cmd_channel.sender()));
+
+    // wait until all other threads finished (never)
+    core::future::pending::<()>().await;
 }
