@@ -58,6 +58,9 @@ name = "bitflags"
 version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "843867be96c8daad0d758b57df9392b6d8d271134fce549de6ce169ff98a92af"
+dependencies = [
+ "serde_core",
+]
 
 [[package]]
 name = "block-device-driver"
@@ -110,7 +113,7 @@ checksum = "e37549a379a9e0e6e576fd208ee60394ccb8be963889eebba3ffe0980364f472"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.115",
+ "syn 2.0.116",
 ]
 
 [[package]]
@@ -140,7 +143,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "strsim",
- "syn 2.0.115",
+ "syn 2.0.116",
 ]
 
 [[package]]
@@ -151,7 +154,7 @@ checksum = "fc34b93ccb385b40dc71c6fceac4b2ad23662c7eeb248cf10d529b7e055b6ead"
 dependencies = [
  "darling_core",
  "quote",
- "syn 2.0.115",
+ "syn 2.0.116",
 ]
 
 [[package]]
@@ -183,7 +186,7 @@ dependencies = [
  "proc-macro-error2",
  "proc-macro2",
  "quote",
- "syn 2.0.115",
+ "syn 2.0.116",
 ]
 
 [[package]]
@@ -223,7 +226,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustc_version 0.4.1",
- "syn 2.0.115",
+ "syn 2.0.116",
 ]
 
 [[package]]
@@ -277,7 +280,7 @@ dependencies = [
  "darling",
  "proc-macro2",
  "quote",
- "syn 2.0.115",
+ "syn 2.0.116",
 ]
 
 [[package]]
@@ -547,32 +550,31 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "futures-core"
-version = "0.3.31"
+version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05f29059c0c2090612e8d742178b0580d2dc940c837851ad723096f87af6663e"
+checksum = "7e3450815272ef58cec6d564423f6e755e25379b217b0bc688e295ba24df6b1d"
 
 [[package]]
 name = "futures-sink"
-version = "0.3.31"
+version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e575fab7d1e0dcb8d0c7bcf9a63ee213816ab51902e6d244a95819acacf1d4f7"
+checksum = "c39754e157331b013978ec91992bde1ac089843443c49cbc7f46150b0fad0893"
 
 [[package]]
 name = "futures-task"
-version = "0.3.31"
+version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f90f7dce0722e95104fcb095585910c0977252f286e354b5e3bd38902cd99988"
+checksum = "037711b3d59c33004d3856fbdc83b99d4ff37a24768fa1be9ce3538a1cde4393"
 
 [[package]]
 name = "futures-util"
-version = "0.3.31"
+version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9fa08315bb612088cc391249efdc3bc77536f16c91f6cf495e6fbe85b20a4a81"
+checksum = "389ca41296e6190b48053de0321d02a77f32f8a5d2461dd38762c0593805c6d6"
 dependencies = [
  "futures-core",
  "futures-task",
  "pin-project-lite",
- "pin-utils",
 ]
 
 [[package]]
@@ -669,12 +671,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3b3cff922bd51709b605d9ead9aa71031d81447142d828eb4a6eba76fe619f9b"
 
 [[package]]
-name = "pin-utils"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
-
-[[package]]
 name = "portable-atomic"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -699,7 +695,7 @@ dependencies = [
  "proc-macro-error-attr2",
  "proc-macro2",
  "quote",
- "syn 2.0.115",
+ "syn 2.0.116",
 ]
 
 [[package]]
@@ -778,14 +774,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
-name = "south-common"
-version = "2.0.0"
-source = "git+ssh://git@github.com/S2outh/south-common.git#5f6d06b5306de86be9a1fb082c4f4f1c6ad6621d"
+name = "serde_core"
+version = "1.0.228"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41d385c7d4ca58e59fc732af25c3983b67ac852c1a25000afe1175de458b67ad"
 dependencies = [
+ "serde_derive",
+]
+
+[[package]]
+name = "serde_derive"
+version = "1.0.228"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.116",
+]
+
+[[package]]
+name = "south-common"
+version = "3.0.0"
+source = "git+ssh://git@github.com/S2outh/south-common.git#5207692f4a88484694f74efe8539061c2e69de95"
+dependencies = [
+ "bitflags 2.11.0",
  "defmt 1.0.1",
  "embassy-stm32",
  "embedded-can",
  "heapless 0.9.2",
+ "libm",
  "tmtc-system",
 ]
 
@@ -875,9 +893,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.115"
+version = "2.0.116"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e614ed320ac28113fa64972c4262d5dbc89deacdfd00c34a3e4cea073243c12"
+checksum = "3df424c70518695237746f84cede799c9c58fcb37450d7b23716568cc8bc69cb"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -901,13 +919,13 @@ checksum = "ebc4ee7f67670e9b64d05fa4253e753e016c6c95ff35b89b7941d6b856dec1d5"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.115",
+ "syn 2.0.116",
 ]
 
 [[package]]
 name = "tmtc-system"
-version = "3.1.1"
-source = "git+ssh://git@github.com/S2outh/telemetry-system.git#0b562de46972b62dbb8b85c7727638f394ba36df"
+version = "4.4.2"
+source = "git+ssh://git@github.com/S2outh/telemetry-system.git#0eb07c659d8f7721f180e7ff61563eba121d9cab"
 dependencies = [
  "tmtc-system-macros",
 ]
@@ -915,12 +933,12 @@ dependencies = [
 [[package]]
 name = "tmtc-system-macros"
 version = "0.1.0"
-source = "git+ssh://git@github.com/S2outh/telemetry-system.git#0b562de46972b62dbb8b85c7727638f394ba36df"
+source = "git+ssh://git@github.com/S2outh/telemetry-system.git#0eb07c659d8f7721f180e7ff61563eba121d9cab"
 dependencies = [
  "heck",
  "proc-macro2",
  "quote",
- "syn 2.0.115",
+ "syn 2.0.116",
 ]
 
 [[package]]
@@ -936,9 +954,9 @@ dependencies = [
 
 [[package]]
 name = "unicode-ident"
-version = "1.0.23"
+version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "537dd038a89878be9b64dd4bd1b260315c1bb94f4d784956b81e27a088d9a09e"
+checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
 
 [[package]]
 name = "vcell"

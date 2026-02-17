@@ -33,8 +33,11 @@ use embassy_sync::{
 };
 use embassy_time::Timer;
 use south_common::{
-    TMValue, TelemetryContainer, TelemetryDefinition, can_config::CanPeriphConfig, telecommands,
-    telemetry::lower_sensor as tm, telemetry_container, types::Telecommand,
+    tmtc_system::{TMValue, TelemetryContainer, TelemetryDefinition, telemetry_container},
+    can_config::CanPeriphConfig,
+    definitions::telecommands,
+    definitions::telemetry::lower_sensor as tm,
+    types::Telecommand,
 };
 use static_cell::StaticCell;
 

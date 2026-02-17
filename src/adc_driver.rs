@@ -38,7 +38,6 @@ pub fn temp_raw_to_celcius(raw: i16) -> f32 {
     let sqrt_d = libm::sqrt(d);
     let temperature = (-TEMP_A + sqrt_d) / (2.0 * TEMP_B);
     temperature as f32
-    // 
 }
 
 pub fn pres_raw_to_pascal(raw: i16) -> f32 {
