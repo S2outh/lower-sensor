@@ -1,3 +1,6 @@
+
+#![allow(unused)]
+
 use embassy_stm32::{
     exti::ExtiInput,
     gpio::Output,
