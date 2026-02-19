@@ -7,6 +7,8 @@
 #![allow(incomplete_features)]
 #![feature(generic_const_exprs)] // This feature is incomplete but beeing used in a benign context
 
+mod adc_driver;
+
 use defmt::*;
 
 use embassy_executor::Spawner;
@@ -42,12 +44,10 @@ use south_common::{
 use static_cell::StaticCell;
 
 use crate::adc_driver::{
-    Adc as SensorAdc, DataRate, OperationMode, pres_raw_to_pascal, temp_raw_to_celcius
+    Adc as SensorAdc, DataRate, OperationMode,
 };
 
 use {defmt_rtt as _, panic_probe as _};
-
-mod adc_driver;
 
 // bind interrupts
 bind_interrupts!(struct Irqs {
@@ -163,9 +163,9 @@ pub async fn adc_thread(
             .await
         {
             Ok((sensor_data, temp_adc)) => {
-                info!("temp °C: {}", temp_raw_to_celcius(sensor_data[2]));
-                info!("pres1 pa: {}", pres_raw_to_pascal(sensor_data[0]));
-                info!("pres2 pa: {}", pres_raw_to_pascal(sensor_data[1]));
+                // info!("temp °C: {}", temp_raw_to_celcius(sensor_data[2]));
+                // info!("pres1 pa: {}", pres_raw_to_pascal(sensor_data[0]));
+                // info!("pres2 pa: {}", pres_raw_to_pascal(sensor_data[1]));
                 let container_p1 =
                     LowerSensorTMContainer::new(pressure1_def, &sensor_data[0]).unwrap();
                 tm_sender.send(container_p1).await;
@@ -188,7 +188,15 @@ async fn main(spawner: Spawner) {
     let mut config = Config::default();
     config.rcc = get_rcc_config();
     let p = embassy_stm32::init(config);
-    info!("Launching");
+    
+    const FW_VERSION: &str = env!("FW_VERSION");
+    const FW_HASH: &str = env!("FW_HASH");
+
+    info!(
+        "Launching: FW version={} hash={}",
+        FW_VERSION,
+        FW_HASH
+    );
 
     // create independent watchdog
     let mut watchdog = IndependentWatchdog::new(p.IWDG, WATCHDOG_TIMEOUT_US);

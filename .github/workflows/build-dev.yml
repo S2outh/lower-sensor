@@ -1,0 +1,91 @@
+name: Dev - Build and Flash
+
+on:
+  push:
+    branches: ["dev"]
+
+permissions:
+  contents: read
+  checks: write
+
+env:
+  GIT_TERMINAL_PROMPT: "0"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      fw_version: ${{ steps.ver.outputs.fw_version }}
+      fw_hash: ${{ steps.ver.outputs.fw_hash }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # If your nix build pulls private git deps, keep this (PAT over SSH).
+      - name: Configure git auth for private deps (force PAT over SSH)
+        shell: bash
+        run: |
+          mkdir -p "$HOME"
+
+          cat > "$HOME/.gitconfig" <<EOF
+          [url "https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/"]
+            insteadOf = https://github.com/
+            insteadOf = ssh://git@github.com/
+            insteadOf = ssh://git@github.com:
+            insteadOf = git@github.com:
+          EOF
+
+          git config --global --list | sed -n 's/^url\./url./p'
+
+      - name: Generate version
+        id: ver
+        shell: bash
+        run: |
+          ver=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')
+          sha=$(git rev-parse --short=7 HEAD)
+          echo "FW_VERSION=v${ver}-${sha}" >> $GITHUB_ENV
+          echo "FW_HASH=${sha}" >> $GITHUB_ENV
+          echo "fw_version=v${ver}-${sha}" >> "$GITHUB_OUTPUT"
+          echo "fw_hash=${sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Nix
+        uses: NixOS/nix-installer-action@main
+        with:
+          extra-conf: |
+            experimental-features = nix-command flakes
+
+      - name: Build (nix)
+        shell: bash
+        run: |
+          nix --version
+          nix build --print-build-logs --impure
+
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: ${{ github.workspace }}/result/bin
+
+  flash:
+    needs: build
+    runs-on: [ self-hosted, flatsat, hil ]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download firmware artifact from this run
+        uses: actions/download-artifact@v4
+        with:
+          name: firmware
+          path: ./fw
+
+      - name: Run integration tests
+        uses: S2outh/hil-tests@main
+        with:
+          probe-name: probe-lower-sensor
+          binary-file: ${{ github.workspace }}/fw/south-sensor-lower
+          fw-version: ${{ needs.build.outputs.fw_version }}
+          fw-hash: ${{ needs.build.outputs.fw_hash }}
+          labgrid-env: ${{ secrets.LABGRID_ENV }}
