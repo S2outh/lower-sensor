@@ -113,7 +113,7 @@ checksum = "e37549a379a9e0e6e576fd208ee60394ccb8be963889eebba3ffe0980364f472"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.116",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -143,7 +143,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "strsim",
- "syn 2.0.116",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -154,7 +154,7 @@ checksum = "fc34b93ccb385b40dc71c6fceac4b2ad23662c7eeb248cf10d529b7e055b6ead"
 dependencies = [
  "darling_core",
  "quote",
- "syn 2.0.116",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -186,7 +186,7 @@ dependencies = [
  "proc-macro-error2",
  "proc-macro2",
  "quote",
- "syn 2.0.116",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -226,7 +226,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustc_version 0.4.1",
- "syn 2.0.116",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -280,7 +280,7 @@ dependencies = [
  "darling",
  "proc-macro2",
  "quote",
- "syn 2.0.116",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -695,7 +695,7 @@ dependencies = [
  "proc-macro-error-attr2",
  "proc-macro2",
  "quote",
- "syn 2.0.116",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -790,13 +790,13 @@ checksum = "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.116",
+ "syn 2.0.117",
 ]
 
 [[package]]
 name = "south-common"
 version = "3.0.0"
-source = "git+ssh://git@github.com/S2outh/south-common.git#5207692f4a88484694f74efe8539061c2e69de95"
+source = "git+ssh://git@github.com/S2outh/south-common.git#130ab092fbbc01876d0cb1bd8ca9b303ce9ad5bc"
 dependencies = [
  "bitflags 2.11.0",
  "defmt 1.0.1",
@@ -893,9 +893,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.116"
+version = "2.0.117"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3df424c70518695237746f84cede799c9c58fcb37450d7b23716568cc8bc69cb"
+checksum = "e665b8803e7b1d2a727f4023456bbbbe74da67099c585258af0ad9c5013b9b99"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -919,13 +919,13 @@ checksum = "ebc4ee7f67670e9b64d05fa4253e753e016c6c95ff35b89b7941d6b856dec1d5"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.116",
+ "syn 2.0.117",
 ]
 
 [[package]]
 name = "tmtc-system"
-version = "4.4.2"
-source = "git+ssh://git@github.com/S2outh/telemetry-system.git#0eb07c659d8f7721f180e7ff61563eba121d9cab"
+version = "4.5.0"
+source = "git+https://github.com/S2outh/telemetry-system.git#fb80963b28bc1d38d453026256c6667fde6c276f"
 dependencies = [
  "tmtc-system-macros",
 ]
@@ -933,12 +933,12 @@ dependencies = [
 [[package]]
 name = "tmtc-system-macros"
 version = "0.1.0"
-source = "git+ssh://git@github.com/S2outh/telemetry-system.git#0eb07c659d8f7721f180e7ff61563eba121d9cab"
+source = "git+https://github.com/S2outh/telemetry-system.git#fb80963b28bc1d38d453026256c6667fde6c276f"
 dependencies = [
  "heck",
  "proc-macro2",
  "quote",
- "syn 2.0.116",
+ "syn 2.0.117",
 ]
 
 [[package]]
