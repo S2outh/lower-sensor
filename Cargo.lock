@@ -796,7 +796,7 @@ dependencies = [
 [[package]]
 name = "south-common"
 version = "3.0.0"
-source = "git+ssh://git@github.com/S2outh/south-common.git#815cb481bbc90b8b10d4fb829fc8a41f53cf1cbf"
+source = "git+ssh://git@github.com/S2outh/south-common.git#705ce8b2195ef203bb3f1b21aa2239e529c15e02"
 dependencies = [
  "bitflags 2.11.0",
  "defmt 1.0.1",
