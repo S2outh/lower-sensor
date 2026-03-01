@@ -35,11 +35,7 @@ use embassy_sync::{
 };
 use embassy_time::Timer;
 use south_common::{
-    tmtc_system::{TMValue, TelemetryContainer, TelemetryDefinition, telemetry_container},
-    can_config::CanPeriphConfig,
-    definitions::telecommands,
-    definitions::telemetry::lower_sensor as tm,
-    types::Telecommand,
+    can_config::CanPeriphConfig, definitions::{telecommands, telemetry::lower_sensor as tm}, tmtc_system::{TMValue, TelemetryContainer, TelemetryDefinition, telemetry_container}, types::{Telecommand, lower_sensor::LowerSensorAdcValues}
 };
 use static_cell::StaticCell;
 
@@ -152,10 +148,7 @@ pub async fn tc_thread(
 pub async fn adc_thread(
     tm_sender: DynamicSender<'static, LowerSensorTMContainer>,
     mut adc: SensorAdc<'static>,
-    pressure1_def: &'static dyn TelemetryDefinition,
-    pressure2_def: &'static dyn TelemetryDefinition,
-    temp_def: &'static dyn TelemetryDefinition,
-    temp_adc_def: &'static dyn TelemetryDefinition,
+    def: &'static dyn TelemetryDefinition,
 ) {
     loop {
         match adc
@@ -166,18 +159,15 @@ pub async fn adc_thread(
                 // info!("temp °C: {}", temp_raw_to_celcius(sensor_data[2]));
                 // info!("pres1 pa: {}", pres_raw_to_pascal(sensor_data[0]));
                 // info!("pres2 pa: {}", pres_raw_to_pascal(sensor_data[1]));
-                let container_p1 =
-                    LowerSensorTMContainer::new(pressure1_def, &sensor_data[0]).unwrap();
-                tm_sender.send(container_p1).await;
-                let container_p2 =
-                    LowerSensorTMContainer::new(pressure2_def, &sensor_data[1]).unwrap();
-                tm_sender.send(container_p2).await;
-                let container_temp =
-                    LowerSensorTMContainer::new(temp_def, &sensor_data[2]).unwrap();
-                tm_sender.send(container_temp).await;
-                let container_temp_adc =
-                    LowerSensorTMContainer::new(temp_adc_def, &temp_adc).unwrap();
-                tm_sender.send(container_temp_adc).await;
+                let adc_data = LowerSensorAdcValues {
+                    pres_1_ch: sensor_data[0],
+                    pres_2_ch: sensor_data[1],
+                    temp_ch: sensor_data[2],
+                    internal_temp: temp_adc,
+                };
+                let container =
+                    LowerSensorTMContainer::new(def, &adc_data).unwrap();
+                tm_sender.send(container).await;
             }
             Err(e) => error!("could not read sensor data from adc {}",e),
         }
@@ -243,10 +233,7 @@ async fn main(spawner: Spawner) {
     spawner.must_spawn(adc_thread(
         tm_channel.dyn_sender(),
         adc,
-        &tm::Pressure1,
-        &tm::Pressure2,
-        &tm::Temp,
-        &tm::AdcTemp,
+        &tm::Adc,
     ));
 
     spawner.must_spawn(tm_thread(can_interface.writer(), tm_channel.receiver()));
