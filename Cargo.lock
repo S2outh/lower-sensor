@@ -633,10 +633,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 [[package]]
 name = "lsm6dsv32"
 version = "0.1.0"
-source = "git+ssh://git@github.com/S2outh/imu-driver.git#4780d5bfdc17e4ecfb84750feb850d052c1aedd1"
-dependencies = [
- "defmt 1.0.1",
-]
+source = "git+ssh://git@github.com/S2outh/imu-driver.git#22648ce994a2b9d6e6d720bc57d346b5b3572381"
 
 [[package]]
 name = "nb"
@@ -804,7 +801,7 @@ dependencies = [
 [[package]]
 name = "south-common"
 version = "3.0.0"
-source = "git+ssh://git@github.com/S2outh/south-common.git#0bb28d92990a0212bd9d27b8d20261d8dbd8459f"
+source = "git+ssh://git@github.com/S2outh/south-common.git#ef849dba4cd4293969058595f798e0653841647e"
 dependencies = [
  "bitflags 2.11.0",
  "defmt 1.0.1",
