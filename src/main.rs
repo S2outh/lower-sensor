@@ -22,10 +22,10 @@ use embassy_stm32::{
     gpio::{Level, Output, Pull, Speed},
     interrupt::typelevel::EXTI4_15,
     mode::Async,
-    peripherals::{FDCAN1, IWDG},
+    peripherals::{FDCAN2, IWDG},
     rcc::{self, mux::Fdcansel},
     spi::{self, Spi, mode::Master},
-    time::Hertz,
+    time::{mhz},
     wdg::IndependentWatchdog,
 };
 use embassy_sync::{
@@ -47,8 +47,11 @@ use {defmt_rtt as _, panic_probe as _};
 
 // bind interrupts
 bind_interrupts!(struct Irqs {
-    TIM16_FDCAN_IT0 => can::IT0InterruptHandler<FDCAN1>;
-    TIM17_FDCAN_IT1 => can::IT1InterruptHandler<FDCAN1>;
+    // TIM16_FDCAN_IT0 => can::IT0InterruptHandler<FDCAN1>;
+    // TIM17_FDCAN_IT1 => can::IT1InterruptHandler<FDCAN1>;
+
+    TIM16_FDCAN_IT0 => can::IT0InterruptHandler<FDCAN2>;
+    TIM17_FDCAN_IT1 => can::IT1InterruptHandler<FDCAN2>;
 
     EXTI4_15 => InterruptHandler<EXTI4_15>;
 });
@@ -195,11 +198,18 @@ async fn main(spawner: Spawner) {
     let tm_channel = TMC.init(Channel::new());
     let cmd_channel = CMDC.init(Channel::new());
 
-    let _can_standby = Output::new(p.PA10, Level::Low, Speed::Low);
 
     // -- CAN configuration
+    // can 1 configuration
+    // let mut can_configurator =
+    //     CanPeriphConfig::new(CanConfigurator::new(p.FDCAN1, p.PA11, p.PA12, Irqs));
+
+    // can 2 configuration
     let mut can_configurator =
-        CanPeriphConfig::new(CanConfigurator::new(p.FDCAN1, p.PA11, p.PA12, Irqs));
+        CanPeriphConfig::new(CanConfigurator::new(p.FDCAN2, p.PB0, p.PB1, Irqs));
+    
+    // let _can_1_standby = Output::new(p.PA10, Level::Low, Speed::Low);
+    let _can_2_standby = Output::new(p.PB2, Level::Low, Speed::Low);
 
     can_configurator
         .add_receive_topic(internal_msgs::Telecommand.id())
@@ -212,7 +222,7 @@ async fn main(spawner: Spawner) {
 
     // Spi / ADC setup
     let mut spi_config = spi::Config::default();
-    spi_config.frequency = Hertz(3_000_000);
+    spi_config.frequency = mhz(3);
     spi_config.gpio_speed = Speed::High;
     spi_config.mode = spi::MODE_1;
 
