@@ -801,7 +801,7 @@ dependencies = [
 [[package]]
 name = "south-common"
 version = "3.0.0"
-source = "git+ssh://git@github.com/S2outh/south-common.git#ef849dba4cd4293969058595f798e0653841647e"
+source = "git+ssh://git@github.com/S2outh/south-common.git#f975908311b0bfb01592903be3110dc7d42ea57a"
 dependencies = [
  "bitflags 2.11.0",
  "defmt 1.0.1",
@@ -939,8 +939,8 @@ dependencies = [
 
 [[package]]
 name = "tmtc-system"
-version = "4.6.3"
-source = "git+https://github.com/S2outh/telemetry-system.git#5ae29bed90288c378f59bf7a6d28b30d8d04048f"
+version = "4.7.0"
+source = "git+https://github.com/S2outh/telemetry-system.git#a856cf2c40eec91460fc2928f4e239d0a631d3ac"
 dependencies = [
  "tmtc-system-macros",
 ]
@@ -948,7 +948,7 @@ dependencies = [
 [[package]]
 name = "tmtc-system-macros"
 version = "0.1.0"
-source = "git+https://github.com/S2outh/telemetry-system.git#5ae29bed90288c378f59bf7a6d28b30d8d04048f"
+source = "git+https://github.com/S2outh/telemetry-system.git#a856cf2c40eec91460fc2928f4e239d0a631d3ac"
 dependencies = [
  "heck",
  "proc-macro2",

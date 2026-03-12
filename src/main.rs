@@ -9,8 +9,7 @@
 
 mod adc_driver;
 
-use defmt::*;
-
+use defmt::{info, error};
 use embassy_executor::Spawner;
 use embassy_stm32::{
     Config, bind_interrupts,
@@ -35,7 +34,7 @@ use embassy_sync::{
 };
 use embassy_time::Timer;
 use south_common::{
-    configs::can_config::CanPeriphConfig, definitions::{internal_msgs, telemetry::lower_sensor as tm}, tmtc_system::{TMValue, TelemetryContainer, TelemetryDefinition, telemetry_container}, types::{Telecommand, lower_sensor::LowerSensorAdcValues}
+    configs::can_config::CanPeriphConfig, definitions::{internal_msgs, telemetry::lower_sensor as tm}, tmtc_system::{TMValue, TelemetryDefinition, fd_compat_telemetry_container}, types::{Telecommand, lower_sensor::LowerSensorAdcValues}
 };
 use static_cell::StaticCell;
 
@@ -83,7 +82,7 @@ const WATCHDOG_TIMEOUT_US: u32 = 300_000;
 const WATCHDOG_PETTING_INTERVAL_US: u32 = WATCHDOG_TIMEOUT_US / 2;
 
 // Telemtry container
-type LowerSensorTMContainer = telemetry_container!(tm);
+type LowerSensorTMContainer = fd_compat_telemetry_container!(tm);
 
 const TM_CHANNEL_BUF_SIZE: usize = 5;
 const CMD_CHANNEL_BUF_SIZE: usize = 5;
@@ -119,7 +118,7 @@ pub async fn tm_thread(
 ) {
     loop {
         let container = tm_channel.receive().await;
-        match FdFrame::new_standard(container.id(), container.bytes()) {
+        match FdFrame::new_standard(container.id(), container.fd_bytes()) {
             Ok(frame) => {
                 can_sender.write(frame).await;
             }
