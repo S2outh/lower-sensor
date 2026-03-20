@@ -34,7 +34,7 @@ use embassy_sync::{
 };
 use embassy_time::Timer;
 use south_common::{
-    configs::can_config::CanPeriphConfig, definitions::{internal_msgs, telemetry::lower_sensor as tm}, chell::{ChellValue, ChellDefinition, fd_compat_chell_container}, types::{Telecommand, lower_sensor::LowerSensorAdcValues}
+    configs::can_config::CanPeriphConfig, definitions::{internal_msgs, telemetry::lower_sensor as tm}, chell::{ChellValue, ChellDefinition, fd_compat_chell_union}, types::{Telecommand, lower_sensor::LowerSensorAdcValues}
 };
 use static_cell::StaticCell;
 
@@ -82,7 +82,7 @@ const WATCHDOG_TIMEOUT_US: u32 = 300_000;
 const WATCHDOG_PETTING_INTERVAL_US: u32 = WATCHDOG_TIMEOUT_US / 2;
 
 // Telemtry container
-type LowerSensorTMContainer = fd_compat_chell_container!(tm);
+type LowerSensorTMContainer = fd_compat_chell_union!(tm);
 
 const TM_CHANNEL_BUF_SIZE: usize = 5;
 const CMD_CHANNEL_BUF_SIZE: usize = 5;
