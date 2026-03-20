@@ -9,8 +9,7 @@
 
 mod adc_driver;
 
-use defmt::*;
-
+use defmt::{info, error};
 use embassy_executor::Spawner;
 use embassy_stm32::{
     Config, bind_interrupts,
@@ -25,7 +24,7 @@ use embassy_stm32::{
     peripherals::{FDCAN1, IWDG},
     rcc::{self, mux::Fdcansel},
     spi::{self, Spi, mode::Master},
-    time::Hertz,
+    time::{mhz},
     wdg::IndependentWatchdog,
 };
 use embassy_sync::{
@@ -35,7 +34,7 @@ use embassy_sync::{
 };
 use embassy_time::Timer;
 use south_common::{
-    configs::can_config::CanPeriphConfig, definitions::{internal_msgs, telemetry::lower_sensor as tm}, tmtc_system::{TMValue, TelemetryContainer, TelemetryDefinition, telemetry_container}, types::{Telecommand, lower_sensor::LowerSensorAdcValues}
+    configs::can_config::CanPeriphConfig, definitions::{internal_msgs, telemetry::lower_sensor as tm}, chell::{ChellValue, ChellDefinition, fd_compat_chell_union}, types::{Telecommand, lower_sensor::LowerSensorAdcValues}
 };
 use static_cell::StaticCell;
 
@@ -47,10 +46,13 @@ use {defmt_rtt as _, panic_probe as _};
 
 // bind interrupts
 bind_interrupts!(struct Irqs {
+    EXTI4_15 => InterruptHandler<EXTI4_15>;
+
     TIM16_FDCAN_IT0 => can::IT0InterruptHandler<FDCAN1>;
     TIM17_FDCAN_IT1 => can::IT1InterruptHandler<FDCAN1>;
 
-    EXTI4_15 => InterruptHandler<EXTI4_15>;
+    // TIM16_FDCAN_IT0 => can::IT0InterruptHandler<FDCAN2>;
+    // TIM17_FDCAN_IT1 => can::IT1InterruptHandler<FDCAN2>;
 });
 
 /// config rcc for higher sysclock and fdcan periph clock to make sure
@@ -80,7 +82,7 @@ const WATCHDOG_TIMEOUT_US: u32 = 300_000;
 const WATCHDOG_PETTING_INTERVAL_US: u32 = WATCHDOG_TIMEOUT_US / 2;
 
 // Telemtry container
-type LowerSensorTMContainer = telemetry_container!(tm);
+type LowerSensorTMContainer = fd_compat_chell_union!(tm);
 
 const TM_CHANNEL_BUF_SIZE: usize = 5;
 const CMD_CHANNEL_BUF_SIZE: usize = 5;
@@ -116,7 +118,7 @@ pub async fn tm_thread(
 ) {
     loop {
         let container = tm_channel.receive().await;
-        match FdFrame::new_standard(container.id(), container.bytes()) {
+        match FdFrame::new_standard(container.id(), container.fd_bytes()) {
             Ok(frame) => {
                 can_sender.write(frame).await;
             }
@@ -148,7 +150,7 @@ pub async fn tc_thread(
 pub async fn adc_thread(
     tm_sender: DynamicSender<'static, LowerSensorTMContainer>,
     mut adc: SensorAdc<'static>,
-    def: &'static dyn TelemetryDefinition,
+    def: &'static dyn ChellDefinition,
 ) {
     loop {
         match adc
@@ -159,6 +161,7 @@ pub async fn adc_thread(
                 // info!("temp °C: {}", temp_raw_to_celcius(sensor_data[2]));
                 // info!("pres1 pa: {}", pres_raw_to_pascal(sensor_data[0]));
                 // info!("pres2 pa: {}", pres_raw_to_pascal(sensor_data[1]));
+                defmt::debug!("read adc data");
                 let adc_data = LowerSensorAdcValues {
                     pres_1_ch: sensor_data[0],
                     pres_2_ch: sensor_data[1],
@@ -195,11 +198,18 @@ async fn main(spawner: Spawner) {
     let tm_channel = TMC.init(Channel::new());
     let cmd_channel = CMDC.init(Channel::new());
 
-    let _can_standby = Output::new(p.PA10, Level::Low, Speed::Low);
 
     // -- CAN configuration
+    // can 1 configuration
     let mut can_configurator =
         CanPeriphConfig::new(CanConfigurator::new(p.FDCAN1, p.PA11, p.PA12, Irqs));
+
+    // can 2 configuration
+    // let mut can_configurator =
+    //     CanPeriphConfig::new(CanConfigurator::new(p.FDCAN2, p.PB0, p.PB1, Irqs));
+    
+    let _can_1_standby = Output::new(p.PA10, Level::Low, Speed::Low);
+    // let _can_2_standby = Output::new(p.PB2, Level::Low, Speed::Low);
 
     can_configurator
         .add_receive_topic(internal_msgs::Telecommand.id())
@@ -212,7 +222,7 @@ async fn main(spawner: Spawner) {
 
     // Spi / ADC setup
     let mut spi_config = spi::Config::default();
-    spi_config.frequency = Hertz(3_000_000);
+    spi_config.frequency = mhz(3);
     spi_config.gpio_speed = Speed::High;
     spi_config.mode = spi::MODE_1;
 
