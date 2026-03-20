@@ -21,7 +21,7 @@ use embassy_stm32::{
     gpio::{Level, Output, Pull, Speed},
     interrupt::typelevel::EXTI4_15,
     mode::Async,
-    peripherals::{FDCAN2, IWDG},
+    peripherals::{FDCAN1, IWDG},
     rcc::{self, mux::Fdcansel},
     spi::{self, Spi, mode::Master},
     time::{mhz},
@@ -46,13 +46,13 @@ use {defmt_rtt as _, panic_probe as _};
 
 // bind interrupts
 bind_interrupts!(struct Irqs {
-    // TIM16_FDCAN_IT0 => can::IT0InterruptHandler<FDCAN1>;
-    // TIM17_FDCAN_IT1 => can::IT1InterruptHandler<FDCAN1>;
-
-    TIM16_FDCAN_IT0 => can::IT0InterruptHandler<FDCAN2>;
-    TIM17_FDCAN_IT1 => can::IT1InterruptHandler<FDCAN2>;
-
     EXTI4_15 => InterruptHandler<EXTI4_15>;
+
+    TIM16_FDCAN_IT0 => can::IT0InterruptHandler<FDCAN1>;
+    TIM17_FDCAN_IT1 => can::IT1InterruptHandler<FDCAN1>;
+
+    // TIM16_FDCAN_IT0 => can::IT0InterruptHandler<FDCAN2>;
+    // TIM17_FDCAN_IT1 => can::IT1InterruptHandler<FDCAN2>;
 });
 
 /// config rcc for higher sysclock and fdcan periph clock to make sure
@@ -161,6 +161,7 @@ pub async fn adc_thread(
                 // info!("temp °C: {}", temp_raw_to_celcius(sensor_data[2]));
                 // info!("pres1 pa: {}", pres_raw_to_pascal(sensor_data[0]));
                 // info!("pres2 pa: {}", pres_raw_to_pascal(sensor_data[1]));
+                defmt::debug!("read adc data");
                 let adc_data = LowerSensorAdcValues {
                     pres_1_ch: sensor_data[0],
                     pres_2_ch: sensor_data[1],
@@ -200,15 +201,15 @@ async fn main(spawner: Spawner) {
 
     // -- CAN configuration
     // can 1 configuration
-    // let mut can_configurator =
-    //     CanPeriphConfig::new(CanConfigurator::new(p.FDCAN1, p.PA11, p.PA12, Irqs));
+    let mut can_configurator =
+        CanPeriphConfig::new(CanConfigurator::new(p.FDCAN1, p.PA11, p.PA12, Irqs));
 
     // can 2 configuration
-    let mut can_configurator =
-        CanPeriphConfig::new(CanConfigurator::new(p.FDCAN2, p.PB0, p.PB1, Irqs));
+    // let mut can_configurator =
+    //     CanPeriphConfig::new(CanConfigurator::new(p.FDCAN2, p.PB0, p.PB1, Irqs));
     
-    // let _can_1_standby = Output::new(p.PA10, Level::Low, Speed::Low);
-    let _can_2_standby = Output::new(p.PB2, Level::Low, Speed::Low);
+    let _can_1_standby = Output::new(p.PA10, Level::Low, Speed::Low);
+    // let _can_2_standby = Output::new(p.PB2, Level::Low, Speed::Low);
 
     can_configurator
         .add_receive_topic(internal_msgs::Telecommand.id())
