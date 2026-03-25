@@ -13,6 +13,7 @@ use defmt::{info, error};
 use embassy_executor::Spawner;
 use embassy_stm32::{
     Config, bind_interrupts,
+    dma,
     can::{
         self, BufferedFdCanReceiver, BufferedFdCanSender, CanConfigurator, RxFdBuf, TxFdBuf,
         frame::FdFrame,
@@ -21,10 +22,10 @@ use embassy_stm32::{
     gpio::{Level, Output, Pull, Speed},
     interrupt::typelevel::EXTI4_15,
     mode::Async,
-    peripherals::{FDCAN1, IWDG},
+    peripherals::{DMA1_CH1, DMA1_CH2, FDCAN1, IWDG},
     rcc::{self, mux::Fdcansel},
     spi::{self, Spi, mode::Master},
-    time::{mhz},
+    time::mhz,
     wdg::IndependentWatchdog,
 };
 use embassy_sync::{
@@ -50,6 +51,9 @@ bind_interrupts!(struct Irqs {
 
     TIM16_FDCAN_IT0 => can::IT0InterruptHandler<FDCAN1>;
     TIM17_FDCAN_IT1 => can::IT1InterruptHandler<FDCAN1>;
+
+    DMA1_CHANNEL1 => dma::InterruptHandler<DMA1_CH1>;
+    DMA1_CHANNEL2_3 => dma::InterruptHandler<DMA1_CH2>;
 
     // TIM16_FDCAN_IT0 => can::IT0InterruptHandler<FDCAN2>;
     // TIM17_FDCAN_IT1 => can::IT1InterruptHandler<FDCAN2>;
@@ -230,24 +234,24 @@ async fn main(spawner: Spawner) {
     let int = ExtiInput::new(p.PA4, p.EXTI4, Pull::None, Irqs);
 
     let spi = SPI.init(Mutex::new(Spi::new(
-        p.SPI1, p.PA5, p.PA7, p.PA6, p.DMA1_CH1, p.DMA1_CH2, spi_config,
+        p.SPI1, p.PA5, p.PA7, p.PA6, p.DMA1_CH1, p.DMA1_CH2, Irqs, spi_config,
     )));
     let adc = SensorAdc::new(spi, cs_adc, int);
 
     // Thread spawning
     watchdog.unleash();
-    spawner.must_spawn(petter(watchdog));
+    spawner.spawn(petter(watchdog).unwrap());
 
     Timer::after_millis(STARTUP_DELAY).await;
 
-    spawner.must_spawn(adc_thread(
+    spawner.spawn(adc_thread(
         tm_channel.dyn_sender(),
         adc,
         &tm::Adc,
-    ));
+    ).unwrap());
 
-    spawner.must_spawn(tm_thread(can_interface.writer(), tm_channel.receiver()));
-    spawner.must_spawn(tc_thread(can_interface.reader(), cmd_channel.sender()));
+    spawner.spawn(tm_thread(can_interface.writer(), tm_channel.receiver()).unwrap());
+    spawner.spawn(tc_thread(can_interface.reader(), cmd_channel.sender()).unwrap());
 
     // wait until all other threads finished (never)
     core::future::pending::<()>().await;
