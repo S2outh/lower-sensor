@@ -88,9 +88,9 @@ checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "cc"
-version = "1.2.57"
+version = "1.2.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a0dd1ca384932ff3641c8718a02769f1698e7563dc6974ffd03346116310423"
+checksum = "e1e928d4b69e3077709075a938a05ffbedfa53a84c8f766efbf8220bb1ff60e1"
 dependencies = [
  "find-msvc-tools",
  "shlex",
@@ -903,6 +903,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 
 [[package]]
+name = "rm3100"
+version = "0.1.0"
+source = "git+ssh://git@github.com/S2outh/magneto-driver.git#d3a7e28c94ce7b93f88c7954a0afa515ac6a7fde"
+dependencies = [
+ "defmt 1.0.1",
+]
+
+[[package]]
 name = "rustc_version"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1026,7 +1034,7 @@ checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 [[package]]
 name = "south-common"
 version = "4.0.0"
-source = "git+ssh://git@github.com/S2outh/south-common.git#21123ad8ec256642fc282b133e5d840a9eb381da"
+source = "git+ssh://git@github.com/S2outh/south-common.git#7ba10d872c66a22ca456075c9be4a036b9f9e132"
 dependencies = [
  "bitflags 2.11.0",
  "chell",
@@ -1035,6 +1043,7 @@ dependencies = [
  "embedded-can",
  "heapless 0.9.2",
  "lsm6dsv32",
+ "rm3100",
  "serde",
  "serde_json",
  "spin",
