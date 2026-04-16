@@ -104,16 +104,16 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "chell"
-version = "5.1.3"
-source = "git+https://github.com/S2outh/chell-sys.git#d9a35309cddf300a094c5e10e0b9b4d03cfbbf13"
+version = "6.0.0"
+source = "git+https://github.com/S2outh/chell-sys.git#486188063d6dd9d16bf5edbbc176ad9b398ab9c4"
 dependencies = [
  "chell-macros",
 ]
 
 [[package]]
 name = "chell-macros"
-version = "5.1.3"
-source = "git+https://github.com/S2outh/chell-sys.git#d9a35309cddf300a094c5e10e0b9b4d03cfbbf13"
+version = "6.0.0"
+source = "git+https://github.com/S2outh/chell-sys.git#486188063d6dd9d16bf5edbbc176ad9b398ab9c4"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -412,7 +412,7 @@ dependencies = [
  "embedded-storage",
  "embedded-storage-async",
  "futures-util",
- "heapless 0.9.2",
+ "heapless",
  "nb 1.1.0",
  "proc-macro2",
  "quote",
@@ -440,7 +440,7 @@ dependencies = [
  "embedded-io-async 0.7.0",
  "futures-core",
  "futures-sink",
- "heapless 0.9.2",
+ "heapless",
 ]
 
 [[package]]
@@ -471,12 +471,12 @@ dependencies = [
 
 [[package]]
 name = "embassy-time-queue-utils"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80e2ee86063bd028a420a5fb5898c18c87a8898026da1d4c852af2c443d0a454"
+checksum = "7fe6ecec32eac4f98c5427904006b0fc61f77d350e1572530f744ef14650f7a1"
 dependencies = [
  "embassy-executor-timer-queue",
- "heapless 0.8.0",
+ "heapless",
 ]
 
 [[package]]
@@ -657,16 +657,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47d60b12902ba28e2730cd37e95b8c9223af2808df9e902d4df49588d1470606"
 dependencies = [
  "byteorder",
-]
-
-[[package]]
-name = "heapless"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bfb9eb618601c89945a70e254898da93b13be0388091d42117462b265bb3fad"
-dependencies = [
- "hash32",
- "stable_deref_trait",
 ]
 
 [[package]]
@@ -1034,14 +1024,14 @@ checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 [[package]]
 name = "south-common"
 version = "4.0.0"
-source = "git+ssh://git@github.com/S2outh/south-common.git#7317d4fcb94b75cb5c4695333b2fb7fc2dfd7c14"
+source = "git+ssh://git@github.com/S2outh/south-common.git#aac3d41a49cf3592661af8176a43adab27173f8b"
 dependencies = [
  "bitflags 2.11.1",
  "chell",
  "defmt 1.0.1",
  "embassy-stm32",
  "embedded-can",
- "heapless 0.9.2",
+ "heapless",
  "lsm6dsv32",
  "rm3100",
  "serde",
@@ -1067,7 +1057,7 @@ dependencies = [
  "embedded-hal 1.0.0",
  "embedded-hal-async",
  "embedded-io-async 0.7.0",
- "heapless 0.9.2",
+ "heapless",
  "libm",
  "panic-probe",
  "portable-atomic",
