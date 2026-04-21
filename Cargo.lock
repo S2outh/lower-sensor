@@ -104,16 +104,16 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "chell"
-version = "6.0.1"
-source = "git+https://github.com/S2outh/chell-sys.git#eca47997c5400859ab051d9237a418b04b9bed60"
+version = "6.0.2"
+source = "git+https://github.com/S2outh/chell-sys.git#66b3c8eeb5398b62bac5fe21ae67a8bc36209e1e"
 dependencies = [
  "chell-macros",
 ]
 
 [[package]]
 name = "chell-macros"
-version = "6.0.1"
-source = "git+https://github.com/S2outh/chell-sys.git#eca47997c5400859ab051d9237a418b04b9bed60"
+version = "6.0.2"
+source = "git+https://github.com/S2outh/chell-sys.git#66b3c8eeb5398b62bac5fe21ae67a8bc36209e1e"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -733,7 +733,7 @@ dependencies = [
 [[package]]
 name = "lsm6dsv32"
 version = "0.1.0"
-source = "git+ssh://git@github.com/S2outh/imu-driver.git#c7d6a65f1e1db4d82003c167eeb5f0e1e5f60596"
+source = "git+https://github.com/S2outh/imu-driver.git#c7d6a65f1e1db4d82003c167eeb5f0e1e5f60596"
 
 [[package]]
 name = "matchers"
@@ -895,7 +895,7 @@ checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 [[package]]
 name = "rm3100"
 version = "0.1.0"
-source = "git+ssh://git@github.com/S2outh/magneto-driver.git#d3a7e28c94ce7b93f88c7954a0afa515ac6a7fde"
+source = "git+https://github.com/S2outh/magneto-driver.git#d3a7e28c94ce7b93f88c7954a0afa515ac6a7fde"
 dependencies = [
  "defmt 1.0.1",
 ]
@@ -1024,7 +1024,7 @@ checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 [[package]]
 name = "south-common"
 version = "4.0.0"
-source = "git+ssh://git@github.com/S2outh/south-common.git#2fbab51b40e29b1a330b801d1a5ef30c8e16cf1d"
+source = "git+ssh://git@github.com/S2outh/south-common.git#3dd17fc2e74d542a0fecba40027b72622b1f662a"
 dependencies = [
  "bitflags 2.11.1",
  "chell",
