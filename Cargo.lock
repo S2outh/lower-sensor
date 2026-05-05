@@ -101,16 +101,16 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "chell"
-version = "6.1.0"
-source = "git+https://github.com/S2outh/chell-sys.git#ff786aa229c0bfc57962b6069690a1d209273a68"
+version = "6.2.0"
+source = "git+https://github.com/S2outh/chell-sys.git#966a097d37b6d37e1567ee802e9f59d59e598952"
 dependencies = [
  "chell-macros",
 ]
 
 [[package]]
 name = "chell-macros"
-version = "6.1.0"
-source = "git+https://github.com/S2outh/chell-sys.git#ff786aa229c0bfc57962b6069690a1d209273a68"
+version = "6.2.0"
+source = "git+https://github.com/S2outh/chell-sys.git#966a097d37b6d37e1567ee802e9f59d59e598952"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -1014,7 +1014,7 @@ checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 [[package]]
 name = "south-common"
 version = "4.0.0"
-source = "git+ssh://git@github.com/S2outh/south-common.git#e06fbbd01ec9d0c18b7ce4aea6617c7620f79aae"
+source = "git+ssh://git@github.com/S2outh/south-common.git#f4a06fd5daa5e4b8c3cf2128da758bc4c5f95df0"
 dependencies = [
  "bitflags 2.11.1",
  "chell",
