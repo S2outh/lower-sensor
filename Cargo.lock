@@ -717,7 +717,7 @@ dependencies = [
 [[package]]
 name = "lsm6dsv32"
 version = "0.1.0"
-source = "git+https://github.com/S2outh/imu-driver.git#c7d6a65f1e1db4d82003c167eeb5f0e1e5f60596"
+source = "git+https://github.com/S2outh/imu-driver.git#03f48a425dbddc78985ccf676ff60d3bbc8992fd"
 
 [[package]]
 name = "matchers"
@@ -1014,7 +1014,7 @@ checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 [[package]]
 name = "south-common"
 version = "4.0.0"
-source = "git+ssh://git@github.com/S2outh/south-common.git#b2e85f0e939a6da8df528b317c1bebd795929753"
+source = "git+ssh://git@github.com/S2outh/south-common.git#e347cff9d9465f25da71287506cf0ae9e8448bd1"
 dependencies = [
  "bitflags 2.11.1",
  "chell",
