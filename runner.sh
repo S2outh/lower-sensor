@@ -1,7 +1,7 @@
 #/bin/sh
 
 TOKEN_ARGS=""
-if [ -f flatsat.token ]; then
+if [[ -f flatsat.token && -z "${FLASH_LOCAL+x}" ]]; then
   TOKEN_ARGS="--host ws://lower-sensor.flatsat.space --token $(cat flatsat.token)"
 fi
 
