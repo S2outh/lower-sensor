@@ -121,7 +121,7 @@ impl Channel {
 pub struct Adc<'d> {
     spi: &'d Mutex<ThreadModeRawMutex, Spi<'d, Async, Master>>,
     cs: Output<'d>,
-    int: ExtiInput<'d>,
+    int: ExtiInput<'d, Async>,
     pub pull_up_enable: bool,
 }
 
@@ -129,7 +129,7 @@ impl<'d> Adc<'d> {
     pub fn new(
         spi: &'d Mutex<ThreadModeRawMutex, Spi<'d, Async, Master>>,
         cs: Output<'d>,
-        int: ExtiInput<'d>,
+        int: ExtiInput<'d, Async>,
     ) -> Self {
         Self {
             spi,

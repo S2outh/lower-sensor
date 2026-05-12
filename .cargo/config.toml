@@ -5,6 +5,7 @@ rustflags = [
   "-C", "link-arg=-Tlink.x", # linker file
   "-C", "link-arg=--nmagic", # no std memory layout
   "-C", "link-arg=-Tdefmt.x", # add defmt
+  "-C", "target-cpu=cortex-m0plus", # add target cpu
 ]
 
 [build]

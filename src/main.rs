@@ -13,28 +13,27 @@ use defmt::{info, error};
 use embassy_executor::Spawner;
 use embassy_stm32::{
     Config, bind_interrupts,
+    dma,
     can::{
-        self, BufferedFdCanReceiver, BufferedFdCanSender, CanConfigurator, RxFdBuf, TxFdBuf,
-        frame::FdFrame,
+        self, CanConfigurator, RxFdBuf, TxFdBuf,
     },
     exti::{ExtiInput, InterruptHandler},
     gpio::{Level, Output, Pull, Speed},
     interrupt::typelevel::EXTI4_15,
     mode::Async,
-    peripherals::{FDCAN1, IWDG},
+    peripherals::{DMA1_CH1, DMA1_CH2, FDCAN1, IWDG},
     rcc::{self, mux::Fdcansel},
     spi::{self, Spi, mode::Master},
-    time::{mhz},
+    time::mhz,
     wdg::IndependentWatchdog,
 };
 use embassy_sync::{
     blocking_mutex::raw::ThreadModeRawMutex,
-    channel::{Channel, DynamicSender, Receiver, Sender},
     mutex::Mutex,
 };
 use embassy_time::Timer;
 use south_common::{
-    configs::can_config::CanPeriphConfig, definitions::{internal_msgs, telemetry::lower_sensor as tm}, chell::{ChellValue, ChellDefinition, fd_compat_chell_union}, types::{Telecommand, lower_sensor::LowerSensorAdcValues}
+    chell::ChellDefinition, configs::can_config::CanPeriphConfig, definitions::{internal_msgs, telemetry::lower_sensor as tm}, gen_obdh_types, obdh::EmptyFunc, types::lower_sensor::LowerSensorAdcValues
 };
 use static_cell::StaticCell;
 
@@ -50,6 +49,9 @@ bind_interrupts!(struct Irqs {
 
     TIM16_FDCAN_IT0 => can::IT0InterruptHandler<FDCAN1>;
     TIM17_FDCAN_IT1 => can::IT1InterruptHandler<FDCAN1>;
+
+    DMA1_CHANNEL1 => dma::InterruptHandler<DMA1_CH1>;
+    DMA1_CHANNEL2_3 => dma::InterruptHandler<DMA1_CH2>;
 
     // TIM16_FDCAN_IT0 => can::IT0InterruptHandler<FDCAN2>;
     // TIM17_FDCAN_IT1 => can::IT1InterruptHandler<FDCAN2>;
@@ -81,16 +83,11 @@ const STARTUP_DELAY: u64 = 300;
 const WATCHDOG_TIMEOUT_US: u32 = 300_000;
 const WATCHDOG_PETTING_INTERVAL_US: u32 = WATCHDOG_TIMEOUT_US / 2;
 
-// Telemtry container
-type LowerSensorTMContainer = fd_compat_chell_union!(tm);
+// TM container
+gen_obdh_types!(LowerSensor, tm);
 
-const TM_CHANNEL_BUF_SIZE: usize = 5;
-const CMD_CHANNEL_BUF_SIZE: usize = 5;
-
-static TMC: StaticCell<Channel<ThreadModeRawMutex, LowerSensorTMContainer, TM_CHANNEL_BUF_SIZE>> =
-    StaticCell::new();
-static CMDC: StaticCell<Channel<ThreadModeRawMutex, Telecommand, CMD_CHANNEL_BUF_SIZE>> =
-    StaticCell::new();
+// internal messaging channels
+static COM_CHANNELS: LowerSensorComChannels = LowerSensorComChannels::new(5);
 
 // static paripherals
 static SPI: StaticCell<Mutex<ThreadModeRawMutex, Spi<'static, Async, Master>>> = StaticCell::new();
@@ -110,45 +107,10 @@ async fn petter(mut watchdog: IndependentWatchdog<'static, IWDG>) {
     }
 }
 
-// tm sending task
-#[embassy_executor::task]
-pub async fn tm_thread(
-    mut can_sender: BufferedFdCanSender,
-    tm_channel: Receiver<'static, ThreadModeRawMutex, LowerSensorTMContainer, TM_CHANNEL_BUF_SIZE>,
-) {
-    loop {
-        let container = tm_channel.receive().await;
-        match FdFrame::new_standard(container.id(), container.fd_bytes()) {
-            Ok(frame) => {
-                can_sender.write(frame).await;
-            }
-            Err(e) => error!("error constructing can message: {}", e),
-        }
-    }
-}
-
-// tc receiving task
-#[embassy_executor::task]
-pub async fn tc_thread(
-    can_receiver: BufferedFdCanReceiver,
-    tc_channel: Sender<'static, ThreadModeRawMutex, Telecommand, TM_CHANNEL_BUF_SIZE>,
-) {
-    loop {
-        match can_receiver.receive().await {
-            Ok(envelope) => match Telecommand::read(envelope.frame.data()) {
-                Ok(cmd) => tc_channel.send(cmd.1).await,
-                Err(_) => error!("error parsing tc"),
-            },
-            Err(e) => error!("error in frame! {}", e),
-        }
-    }
-}
-
-
 // adc task
 #[embassy_executor::task]
 pub async fn adc_thread(
-    tm_sender: DynamicSender<'static, LowerSensorTMContainer>,
+    tm_sender: LowerSensorTMSender,
     mut adc: SensorAdc<'static>,
     def: &'static dyn ChellDefinition,
 ) {
@@ -169,13 +131,24 @@ pub async fn adc_thread(
                     internal_temp: temp_adc,
                 };
                 let container =
-                    LowerSensorTMContainer::new(def, &adc_data).unwrap();
+                    LowerSensorChellUnion::new(def, &adc_data).unwrap();
                 tm_sender.send(container).await;
             }
             Err(e) => error!("could not read sensor data from adc {}",e),
         }
     }
 }
+
+#[embassy_executor::task]
+pub async fn can_receiver_task(mut can_receiver: LowerSensorCanReceiver) -> ! {
+    can_receiver.run().await
+}
+
+#[embassy_executor::task]
+pub async fn can_sender_task(mut can_sender: LowerSensorCanSender) -> ! {
+    can_sender.run().await
+}
+
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     let mut config = Config::default();
@@ -194,11 +167,6 @@ async fn main(spawner: Spawner) {
     // create independent watchdog
     let mut watchdog = IndependentWatchdog::new(p.IWDG, WATCHDOG_TIMEOUT_US);
 
-    // TM channel setup
-    let tm_channel = TMC.init(Channel::new());
-    let cmd_channel = CMDC.init(Channel::new());
-
-
     // -- CAN configuration
     // can 1 configuration
     let mut can_configurator =
@@ -215,10 +183,15 @@ async fn main(spawner: Spawner) {
         .add_receive_topic(internal_msgs::Telecommand.id())
         .unwrap();
 
-    let can_interface = can_configurator.activate(
+    let can_instance = can_configurator.activate(
         TX_BUF.init(TxFdBuf::<TX_BUF_SIZE>::new()),
         RX_BUF.init(RxFdBuf::<RX_BUF_SIZE>::new()),
     );
+
+    // Setup can sender and receiver runners
+    let can_receiver = LowerSensorCanReceiver::new(can_instance.reader(), &COM_CHANNELS, EmptyFunc);
+
+    let can_sender = LowerSensorCanSender::new(can_instance.writer(), &COM_CHANNELS);
 
     // Spi / ADC setup
     let mut spi_config = spi::Config::default();
@@ -230,24 +203,24 @@ async fn main(spawner: Spawner) {
     let int = ExtiInput::new(p.PA4, p.EXTI4, Pull::None, Irqs);
 
     let spi = SPI.init(Mutex::new(Spi::new(
-        p.SPI1, p.PA5, p.PA7, p.PA6, p.DMA1_CH1, p.DMA1_CH2, spi_config,
+        p.SPI1, p.PA5, p.PA7, p.PA6, p.DMA1_CH1, p.DMA1_CH2, Irqs, spi_config,
     )));
     let adc = SensorAdc::new(spi, cs_adc, int);
 
     // Thread spawning
     watchdog.unleash();
-    spawner.must_spawn(petter(watchdog));
+    spawner.spawn(petter(watchdog).unwrap());
 
     Timer::after_millis(STARTUP_DELAY).await;
 
-    spawner.must_spawn(adc_thread(
-        tm_channel.dyn_sender(),
+    spawner.spawn(adc_thread(
+        COM_CHANNELS.get_tm_sender(),
         adc,
         &tm::Adc,
-    ));
+    ).unwrap());
 
-    spawner.must_spawn(tm_thread(can_interface.writer(), tm_channel.receiver()));
-    spawner.must_spawn(tc_thread(can_interface.reader(), cmd_channel.sender()));
+    spawner.spawn(can_sender_task(can_sender).unwrap());
+    spawner.spawn(can_receiver_task(can_receiver).unwrap());
 
     // wait until all other threads finished (never)
     core::future::pending::<()>().await;
