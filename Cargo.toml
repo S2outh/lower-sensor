@@ -30,5 +30,13 @@ south-common = { features = ["g0"], git = "ssh://git@github.com/S2outh/south-com
 derive_more = { version = "2.1.1", features = ["constructor"], default-features = false }
 libm = "0.2.16"
 
+[profile.dev]
+opt-level = 3
+debug = 2
+debug-assertions = false
+lto = true
+codegen-units = 16
+
 [profile.release]
+lto = true
 debug = 2
