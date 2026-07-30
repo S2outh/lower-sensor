@@ -1,9 +1,6 @@
 #![no_std]
 #![no_main]
-#![feature(variant_count)]
-#![feature(type_alias_impl_trait)]
-#![feature(iter_collect_into)]
-#![feature(iterator_try_collect)]
+#![feature(impl_trait_in_assoc_type)] // required by `embassy_executor::task` with the `nightly` feature
 #![allow(incomplete_features)]
 #![feature(generic_const_exprs)] // This feature is incomplete but beeing used in a benign context
 
