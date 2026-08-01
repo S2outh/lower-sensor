@@ -30,7 +30,7 @@ use embassy_sync::{
 };
 use embassy_time::Timer;
 use south_common::{
-    chell::ChellDefinition, configs::can_config::CanPeriphConfig, definitions::{internal_msgs, telemetry::lower_sensor as tm}, gen_obdh_types, obdh::EmptyFunc, types::lower_sensor::LowerSensorAdcValues
+    chell::ChellDefinition, configs::can_config::CanPeriphConfig, definitions::{telemetry::lower_sensor as tm}, gen_obdh_types, obdh::EmptyFunc, types::lower_sensor::LowerSensorAdcValues
 };
 use static_cell::StaticCell;
 
@@ -107,7 +107,7 @@ async fn petter(mut watchdog: IndependentWatchdog<'static, IWDG>) {
 // adc task
 #[embassy_executor::task]
 pub async fn adc_thread(
-    tm_sender: LowerSensorTMSender,
+    com_channels: &'static LowerSensorComChannels,
     mut adc: SensorAdc<'static>,
     def: &'static dyn ChellDefinition,
 ) {
@@ -129,7 +129,7 @@ pub async fn adc_thread(
                 };
                 let container =
                     LowerSensorChellUnion::new(def, &adc_data).unwrap();
-                tm_sender.send(container).await;
+                com_channels.send_tm(container).await;
             }
             Err(e) => error!("could not read sensor data from adc {}",e),
         }
@@ -166,19 +166,15 @@ async fn main(spawner: Spawner) {
 
     // -- CAN configuration
     // can 1 configuration
-    let mut can_configurator =
+    let can_configurator =
         CanPeriphConfig::new(CanConfigurator::new(p.FDCAN1, p.PA11, p.PA12, Irqs));
 
     // can 2 configuration
-    // let mut can_configurator =
+    // let can_configurator =
     //     CanPeriphConfig::new(CanConfigurator::new(p.FDCAN2, p.PB0, p.PB1, Irqs));
     
     let _can_1_standby = Output::new(p.PA10, Level::Low, Speed::Low);
     // let _can_2_standby = Output::new(p.PB2, Level::Low, Speed::Low);
-
-    can_configurator
-        .add_receive_topic(internal_msgs::Telecommand.id())
-        .unwrap();
 
     let can_instance = can_configurator.activate(
         TX_BUF.init(TxFdBuf::<TX_BUF_SIZE>::new()),
@@ -211,7 +207,7 @@ async fn main(spawner: Spawner) {
     Timer::after_millis(STARTUP_DELAY).await;
 
     spawner.spawn(adc_thread(
-        COM_CHANNELS.get_tm_sender(),
+        &COM_CHANNELS,
         adc,
         &tm::Adc,
     ).unwrap());
