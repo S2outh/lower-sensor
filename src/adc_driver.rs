@@ -187,8 +187,8 @@ impl<'d> Adc<'d> {
                 });
 
                 let sleep_config_msb = encode_reg8!(base: config_msb, {
-                    0 => 15, 1, // SS = 0
-                    1 => 8, 1,  // MODE = 1 (Single-Shot / Power-Down)
+                    0 => 7, 1, // SS = 0
+                    1 => 0, 1,  // MODE = 1 (Single-Shot / Power-Down)
                 });
                 
                 self.write_register(config_msb, config_lsb).await?;
