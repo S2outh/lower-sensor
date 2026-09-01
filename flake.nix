@@ -1,10 +1,10 @@
-
 {
   description = "embassy flake";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+    systems.url = "github:nix-systems/default";
+    flake-parts.url = "github:hercules-ci/flake-parts";
     fenix.url = "github:nix-community/fenix/monthly";
     naersk = {
       url = "github:nix-community/naersk";
@@ -12,26 +12,20 @@
     };
   };
 
-  outputs = { self, nixpkgs, flake-utils, fenix, naersk }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs = inputs@{ flake-parts, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } ({ ... }: {
+      systems = import inputs.systems;
+      perSystem = { pkgs, system, inputs', ... }: 
       let
-        probe-rs-overlay = (final: prev: {
-          probe-rs-tools = prev.probe-rs-tools.overrideAttrs {
-            cargoBuildFeatures = [ "remote" ];
-          };
-        }); 
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [
-            probe-rs-overlay 
-          ];
+        probe-rs-tools = pkgs.probe-rs-tools.overrideAttrs {
+          cargoBuildFeatures = [ "remote" ];
         };
-        fpkgs = fenix.packages.${system};
+        fpkgs = inputs'.fenix.packages;
         profile = fpkgs.complete;
         std-lib = fpkgs.targets.thumbv6m-none-eabi.latest;
         rust-analyzer-nightly = fpkgs.rust-analyzer;
         rust-toolchain = fpkgs.combine [
-          profile.rustc
+          profile.rustc-unwrapped
           profile.rust-src
           profile.cargo
           profile.rustfmt
@@ -39,8 +33,7 @@
           profile.llvm-tools
           std-lib.rust-std
         ];
-      in
-      {
+      in {
         devShells.default =
         pkgs.mkShell {
           buildInputs = with pkgs; [
@@ -62,9 +55,8 @@
           # set default defmt log level
           DEFMT_LOG = "info";
         };
-
         packages.default = 
-        (naersk.lib.${system}.override {
+        (inputs.naersk.lib.${system}.override {
           cargo = rust-toolchain;
           rustc = rust-toolchain;
         }).buildPackage {
@@ -74,7 +66,7 @@
 
           DEFMT_LOG = "info";
         };
-      }
-    );
+      };
+    });
 }
 
