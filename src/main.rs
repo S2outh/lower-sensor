@@ -60,17 +60,21 @@ fn get_rcc_config() -> rcc::Config {
     let mut rcc_config = rcc::Config::default();
     rcc_config.hsi = Some(rcc::Hsi {
         sys_div: rcc::HsiSysDiv::DIV1,
-    });
-    rcc_config.sys = rcc::Sysclk::PLL1_R;
+    }); // 16 MHz
     rcc_config.pll = Some(rcc::Pll {
         source: rcc::PllSource::HSI,
-        prediv: rcc::PllPreDiv::DIV1,
-        mul: rcc::PllMul::MUL8,
+        prediv: rcc::PllPreDiv::DIV1, // 16 MHz
+        mul: rcc::PllMul::MUL8, // 128 MHz
         divp: None,
-        divq: Some(rcc::PllQDiv::DIV2),
-        divr: Some(rcc::PllRDiv::DIV2),
+        divq: Some(rcc::PllQDiv::DIV2), // 64 MHz
+        divr: Some(rcc::PllRDiv::DIV2), // 64 MHz
     });
-    rcc_config.mux.fdcansel = Fdcansel::PLL1_Q;
+    rcc_config.sys = rcc::Sysclk::PLL1_R; // cpu runns with 64 MHz
+    // fdcan_tq_ck (64 MHz) must stay <= fdcan_pclk, i.e. apb1 (64 MHz)
+    rcc_config.mux.fdcansel = Fdcansel::PLL1_Q; // can runns with 64 MHz
+
+    rcc_config.ahb_pre = rcc::AHBPrescaler::DIV1; // 64 MHz
+    rcc_config.apb1_pre = rcc::APBPrescaler::DIV1; // 64 MHz
     rcc_config
 }
 
